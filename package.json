@@ -2,6 +2,7 @@
   "name": "greenerlabai",
   "version": "0.1.0",
   "private": true,
+  "proxy": "http://localhost:4000",
   "dependencies": {
     "@azure/storage-blob": "^12.27.0",
     "@testing-library/dom": "^10.4.0",
