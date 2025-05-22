@@ -1,13 +1,14 @@
+// src/App.js
 import React from 'react';
-import ImageAnalyzer from './components/ImageAnalyzer';  // ← 경로 주의!
+import ChatAnalyzer from './components/ChatAnalyzer';
 
 function App() {
   return (
     <div className="App">
-      <ImageAnalyzer />  {/* 여기서 컴포넌트를 렌더링 */}
+      <h1>해충/병증 분석 챗</h1>
+      <ChatAnalyzer />
     </div>
   );
 }
-
 export default App;
 
