@@ -30,7 +30,7 @@ export default function ChatAnalyzer() {
     b64s.forEach((b64, i) => payload[`imageData${i+1}`] = b64);
     // 4) API 호출
     try {
-      const { data } = await axios.post('http://localhost:4000/api/analyze', payload);
+      const { data } = await axios.post('http://20.249.161.238:4000/api/analyze', payload);
       // 5) 봇 메시지 추가
       setChat(c => [...c, {
         sender:'bot',
