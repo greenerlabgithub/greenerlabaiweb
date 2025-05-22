@@ -25,7 +25,7 @@ function App() {
         payload[`imageData${i + 1}`] = await toBase64(files[i]);
       }
       const { data } = await axios.post(
-        'http://www.treedr.co.kr:4000/api/analyze',
+        '/api/analyze',
         payload
       );
       setResponse(data);
