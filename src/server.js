@@ -2,105 +2,118 @@
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import { BlobServiceClient, BlockBlobUploadStreamOptions } from '@azure/storage-blob';
-import { Client, types } from 'google-genai';
+import { BlobServiceClient } from '@azure/storage-blob';
+import vision from '@google-cloud/vision';
+import { VertexAI, HarmCategory, HarmBlockThreshold } from '@google-cloud/vertexai';
+import axios from 'axios';
 import dotenv from 'dotenv';
-import { Buffer } from 'buffer';
-import { Readable } from 'stream';
-import { Image } from 'canvas';
+import { v4 as uuidv4 } from 'uuid';
 
 dotenv.config();
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// Middleware
+// 미들웨어
 app.use(cors());
-app.use(bodyParser.json({ limit: '20mb' }));
+app.use(bodyParser.json({ limit: '10mb' }));
 
 // Azure Blob 초기화
-const blobSvc = BlobServiceClient.fromConnectionString(
-  process.env.AZURE_STORAGE_CONNECTION_STRING
-);
-const containerClient = blobSvc.getContainerClient('images');
-await containerClient.createIfNotExists();
+const blobSvc = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
+const containerClient = blobSvc.getContainerClient(process.env.AZURE_STORAGE_CONTAINER);
 
-// 이미지 바이트 → genai.Part 생성
-async function partFromBytes(buffer) {
-  // `canvas` 패키지 설치 시 사용. 없으면 JPEG 고정 가능
-  let mime = 'image/jpeg';
-  try {
-    const img = new Image();
-    img.src = buffer;
-    mime = img.type || mime;
-  } catch {}
-  return types.Part.fromBytes({ data: buffer, mimeType: mime });
+// GCP Vision & Vertex AI 초기화
+const visionClient = new vision.ImageAnnotatorClient();
+const vertexAI = new VertexAI({
+  project: process.env.GOOGLE_CLOUD_PROJECT,
+  location: process.env.VERTEX_LOCATION,
+});
+const genModel = vertexAI.getGenerativeModel({
+  model: 'gemini-1.0-pro-vision',
+  safetySettings: [
+    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_HIGH }
+  ],
+  generationConfig: { maxOutputTokens: 512 }
+});
+
+// Custom Search 설정
+const CS_API_KEY = process.env.CUSTOM_SEARCH_API_KEY;
+const CS_CX      = process.env.CUSTOM_SEARCH_CX;
+
+// Azure Blob 업로드 헬퍼
+async function uploadToAzure(buffer, ext) {
+  const blobName = `upload/${Date.now()}_${uuidv4()}.${ext}`;
+  const block = containerClient.getBlockBlobClient(blobName);
+  await block.uploadData(buffer, {
+    blobHTTPHeaders: { blobContentType: `image/${ext}` }
+  });
+  return block.url;
 }
 
-// Gemini 호출
-async function generateWithGemini(buffers, additionalInfo) {
-  const client = new Client({ apiKey: process.env.GOOGLE_API_KEY });
-  const model = 'gemini-2.0-flash-001';
+// Vision API → 병해충 후보 추출
+async function detectCandidates(imageBuffer) {
+  const [webRes] = await visionClient.webDetection({ image: { content: imageBuffer } });
+  const [labelRes] = await visionClient.labelDetection({ image: { content: imageBuffer } });
 
-  // 텍스트 + 이미지 파트 조합
-  const parts = [
-    types.Part.fromText({
-      text:
-        '이 이미지는 수목 혹은 식물에 영향을 주는 곤충 혹은 병증입니다. ' +
-        additionalInfo,
-    }),
-    ...(await Promise.all(buffers.map((b) => partFromBytes(b)))),
-  ];
+  const candidates = (webRes.webDetection.webEntities || [])
+    .map(e => ({ description: e.description, score: e.score || 0 }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
 
-  const contents = [{ role: 'user', parts }];
-  const config = types.GenerateContentConfig.fromPartial({
-    topP: 0.5,
-    tools: [types.Tool.fromPartial({ googleSearch: {} })],
-    responseMimeType: 'text/plain',
-  });
-
-  const res = await client.models.generateContent({
-    model,
-    contents,
-    config,
-  });
-  return res.text;
+  return candidates;
 }
 
-// API 엔드포인트
+// Custom Search로 텍스트 수집
+async function customSearch(query) {
+  const url = 'https://www.googleapis.com/customsearch/v1';
+  const res = await axios.get(url, {
+    params: { key: CS_API_KEY, cx: CS_CX, q: query }
+  });
+  return (res.data.items || []).map(i => i.snippet).join(' ');
+}
+
+// Gemini 요약 헬퍼
+async function extractWithGemini(text, prompt) {
+  const contents = [{
+    role: 'user',
+    parts: [{ text: `${prompt}\n\n${text}` }]
+  }];
+  const resp = await genModel.generateContent({ contents });
+  return resp.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+// 메인 엔드포인트
 app.post('/api/analyze', async (req, res) => {
   try {
-    const { additionalInfo, imageData1, imageData2, imageData3 } = req.body;
-    const base64s = [imageData1, imageData2, imageData3].filter(Boolean);
-    if (base64s.length < 1 || base64s.length > 3) {
-      return res
-        .status(400)
-        .json({ error: 'imageData1~3 중 최소 1개, 최대 3개를 보내주세요.' });
+    const { imageBase64 } = req.body;
+    if (!imageBase64) return res.status(400).json({ error: 'imageBase64 필수' });
+
+    // 1) Base64 → Buffer & Azure Blob 업로드
+    const buffer = Buffer.from(imageBase64, 'base64');
+    const ext = imageBase64.startsWith('iVBOR') ? 'png' : 'jpg';
+    const imageUrl = await uploadToAzure(buffer, ext);
+
+    // 2) Vision → 후보 리스트
+    const candidates = await detectCandidates(buffer);
+    const label = candidates[0]?.description || null;
+    if (!label) {
+      return res.json({ candidates, label: null, cause: '', remedy: '', imageUrl });
     }
 
-    // 1) Base64 → Buffer
-    const buffers = base64s.map((b64) => Buffer.from(b64, 'base64'));
+    // 3) Custom Search → 원인·방제 텍스트
+    const causeText  = await customSearch(`${label} 피해 원인`);
+    const remedyText = await customSearch(`${label} 방제 방법`);
 
-    // 2) Blob 업로드
-    const imageUrls = [];
-    for (let i = 0; i < buffers.length; i++) {
-      const name = `img_${Date.now()}_${i}.jpg`;
-      const block = containerClient.getBlockBlobClient(name);
-      await block.uploadData(buffers[i], {
-        blobHTTPHeaders: { blobContentType: 'image/jpeg' },
-      });
-      imageUrls.push(block.url);
-    }
+    // 4) Gemini → 요약
+    const cause  = await extractWithGemini(causeText,  `아래 내용을 보고 "${label}"의 피해 원인을 요약해 주세요:`);
+    const remedy = await extractWithGemini(remedyText, `아래 내용을 보고 "${label}"의 방제 방법을 요약해 주세요:`);
 
-    // 3) Gemini 분석
-    const resultText = await generateWithGemini(buffers, additionalInfo);
-
-    return res.json({ result: resultText, imageUrls });
+    // 5) 응답
+    res.json({ candidates, label, cause, remedy, imageUrl });
   } catch (e) {
     console.error(e);
-    return res.status(500).json({ error: e.message });
+    res.status(500).json({ error: e.message });
   }
 });
 
-app.listen(PORT, () =>
-  console.log(`🌳 GreenerLabAI API listening on port ${PORT}`)
-);
+app.listen(PORT, () => console.log(`✅ API listening on port ${PORT}`));
