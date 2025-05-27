@@ -37,6 +37,17 @@ const genModel = vertexAI.getGenerativeModel({
   generationConfig: { maxOutputTokens: 1024 }
 });
 
+// === Debug: Available Generative Models ===
+(async () => {
+  try {
+    const models = await vertexAI.listGenerativeModels();
+    console.log('Available models:', models.map(m => m.model));
+  } catch (err) {
+    console.error('Error listing generative models:', err);
+  }
+})();
+// ==========================================
+
 // Custom Search 설정
 const CS_API_KEY = process.env.CUSTOM_SEARCH_API_KEY;
 const CS_CX      = process.env.CUSTOM_SEARCH_CX;
