@@ -30,23 +30,14 @@ const vertexAI = new VertexAI({
   location: process.env.VERTEX_LOCATION,
 });
 const genModel = vertexAI.getGenerativeModel({
-  model: 'gemini-pro-vision',
+  model: 'gemini-1.0-pro-vision',
   safetySettings: [
     { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_HIGH }
   ],
   generationConfig: { maxOutputTokens: 1024 }
 });
 
-// === Debug: Available Generative Models ===
-(async () => {
-  try {
-    const models = await vertexAI.listGenerativeModels();
-    console.log('Available models:', models.map(m => m.model));
-  } catch (err) {
-    console.error('Error listing generative models:', err);
-  }
-})();
-// ==========================================
+
 
 // Custom Search 설정
 const CS_API_KEY = process.env.CUSTOM_SEARCH_API_KEY;
