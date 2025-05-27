@@ -51,3 +51,5 @@ dist/
 .vscode/
 .idea/
 
+/backend/keys/
+/backend/.env
