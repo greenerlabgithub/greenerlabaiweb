@@ -30,11 +30,11 @@ const vertexAI = new VertexAI({
   location: process.env.VERTEX_LOCATION,
 });
 const genModel = vertexAI.getGenerativeModel({
-  model: 'gemini-1.0-pro-vision',
+  model: 'gemini-pro-vision',
   safetySettings: [
     { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_HIGH }
   ],
-  generationConfig: { maxOutputTokens: 512 }
+  generationConfig: { maxOutputTokens: 1024 }
 });
 
 // Custom Search 설정
