@@ -1,19 +1,19 @@
 // server.js
-import express                      from 'express';
-import cors                         from 'cors';
-import bodyParser                   from 'body-parser';
-import { BlobServiceClient }        from '@azure/storage-blob';
-import vision                       from '@google-cloud/vision';
-import VertexAIPkg                  from '@google-cloud/vertexai';  // ← default import
-import axios                        from 'axios';
-import dotenv                       from 'dotenv';
-import { v4 as uuidv4 }            from 'uuid';
+import express                   from 'express';
+import cors                      from 'cors';
+import bodyParser                from 'body-parser';
+import { BlobServiceClient }     from '@azure/storage-blob';
+import vision                    from '@google-cloud/vision';
+import VertexAIPkg               from '@google-cloud/vertexai';   // default import
+import axios                     from 'axios';
+import dotenv                    from 'dotenv';
+import { v4 as uuidv4 }         from 'uuid';
 
 dotenv.config();
 const app  = express();
 const PORT = process.env.PORT || 4000;
 
-// 구조분해로 필요한 것들만 꺼내기
+// CommonJS 모듈에서 필요한 부분만 꺼내기
 const {
   VertexAI,
   HarmCategory,
@@ -21,12 +21,12 @@ const {
   types: GenTypes
 } = VertexAIPkg;
 
-// --- 미들웨어 설정 ---
+// 미들웨어
 app.use(cors());
 app.use(bodyParser.json({ limit: '100mb' }));
 app.use(bodyParser.urlencoded({ limit: '100mb', extended: true }));
 
-// --- Azure Blob 초기화 ---
+// Azure Blob 초기화
 const blobSvc         = BlobServiceClient.fromConnectionString(
   process.env.AZURE_STORAGE_CONNECTION_STRING
 );
@@ -34,7 +34,7 @@ const containerClient = blobSvc.getContainerClient(
   process.env.AZURE_STORAGE_CONTAINER
 );
 
-// --- GCP Vision & Vertex AI 초기화 ---
+// GCP Vision & Vertex AI 초기화
 const visionClient = new vision.ImageAnnotatorClient();
 const vertexAI     = new VertexAI({
   project:  process.env.GOOGLE_CLOUD_PROJECT,
@@ -52,7 +52,7 @@ const genModel = vertexAI.getGenerativeModel({
   generationConfig: { maxOutputTokens: 1024 }
 });
 
-// --- 이미지 업로드 헬퍼 ---
+// 이미지를 Azure Blob에 저장
 async function uploadToAzure(buffer, ext) {
   const blobName = `upload/${Date.now()}_${uuidv4()}.${ext}`;
   const block    = containerClient.getBlockBlobClient(blobName);
@@ -62,29 +62,22 @@ async function uploadToAzure(buffer, ext) {
   return block.url;
 }
 
-// --- 이미지 기반 분석 헬퍼 ---
+// Gemini Pro Vision 모델에 이미지와 프롬프트를 전달해 JSON 응답을 파싱
 async function analyzeImageWithGemini(buffer) {
+  // Part 생성
   const imagePart = GenTypes.Part.fromBytes({
     data:     buffer,
     mimeType: 'image/jpeg'
   });
-  const textPart  = GenTypes.Part.fromText({
+  const textPart = GenTypes.Part.fromText({
     text: `이 이미지는 수목의 병해충 또는 증상을 촬영한 것입니다.
-아래 이미지에 나타난 병해충/병증 이름과,
-피해 원인, 방제 방법을 JSON 형식으로 출력해 주세요:
-{
-  "pest": "",
-  "cause": "",
-  "remedy": ""
-}`
+아래 이미지에 나타난 병해충/병증 이름과 피해 원인, 방제 방법을
+JSON 형식으로 정확히 출력해 주세요:
+{"pest": "", "cause": "", "remedy": ""}`
   });
 
-  const contents = [{
-    role:  'user',
-    parts: [textPart, imagePart]
-  }];
-
-  const config = GenTypes.GenerateContentConfig.fromPartial({
+  const contents = [{ role: 'user', parts: [textPart, imagePart] }];
+  const config   = GenTypes.GenerateContentConfig.fromPartial({
     tools: [
       GenTypes.Tool.fromPartial({ googleSearch: {} })
     ],
@@ -100,7 +93,7 @@ async function analyzeImageWithGemini(buffer) {
   return JSON.parse(match[0]);
 }
 
-// --- 메인 엔드포인트 ---
+// 메인 엔드포인트
 app.post('/api/analyze', async (req, res) => {
   try {
     const { imageBase64 } = req.body;
@@ -108,10 +101,12 @@ app.post('/api/analyze', async (req, res) => {
       return res.status(400).json({ error: 'imageBase64 필수입니다.' });
     }
 
-    const buffer   = Buffer.from(imageBase64, 'base64');
-    const ext      = imageBase64.startsWith('iVBOR') ? 'png' : 'jpg';
+    // Base64 → Buffer
+    const buffer = Buffer.from(imageBase64, 'base64');
+    const ext    = imageBase64.startsWith('iVBOR') ? 'png' : 'jpg';
+    // 1) Blob 저장
     const imageUrl = await uploadToAzure(buffer, ext);
-
+    // 2) Gemini 분석
     const { pest, cause, remedy } = await analyzeImageWithGemini(buffer);
 
     return res.json({ imageUrl, pest, cause, remedy });
@@ -121,7 +116,7 @@ app.post('/api/analyze', async (req, res) => {
   }
 });
 
-// --- 서버 시작 ---
+// 서버 시작
 app.listen(PORT, () => {
   console.log(`✅ API listening on port ${PORT}`);
 });
