@@ -1,20 +1,25 @@
 // server.js
-import express          from 'express';
-import cors             from 'cors';
-import bodyParser       from 'body-parser';
-import { BlobServiceClient } from '@azure/storage-blob';
-import vision           from '@google-cloud/vision';
-import {
-  VertexAI, HarmCategory, HarmBlockThreshold,
-  types as GenTypes
-} from '@google-cloud/vertexai';
-import axios            from 'axios';
-import dotenv           from 'dotenv';
-import { v4 as uuidv4 } from 'uuid';
+import express                      from 'express';
+import cors                         from 'cors';
+import bodyParser                   from 'body-parser';
+import { BlobServiceClient }        from '@azure/storage-blob';
+import vision                       from '@google-cloud/vision';
+import VertexAIPkg                  from '@google-cloud/vertexai';  // ← default import
+import axios                        from 'axios';
+import dotenv                       from 'dotenv';
+import { v4 as uuidv4 }            from 'uuid';
 
 dotenv.config();
 const app  = express();
 const PORT = process.env.PORT || 4000;
+
+// 구조분해로 필요한 것들만 꺼내기
+const {
+  VertexAI,
+  HarmCategory,
+  HarmBlockThreshold,
+  types: GenTypes
+} = VertexAIPkg;
 
 // --- 미들웨어 설정 ---
 app.use(cors());
@@ -36,11 +41,13 @@ const vertexAI     = new VertexAI({
   location: process.env.VERTEX_LOCATION,
 });
 const genModel = vertexAI.getGenerativeModel({
-  publisher: 'google',                  // Model Garden 퍼블리셔
-  model:     'gemini-pro-vision',       // 이미지 입력 지원 모델
+  publisher: 'google',
+  model:     'gemini-pro-vision',
   safetySettings: [
-    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-      threshold: HarmBlockThreshold.BLOCK_HIGH }
+    {
+      category:  HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+      threshold: HarmBlockThreshold.BLOCK_HIGH
+    }
   ],
   generationConfig: { maxOutputTokens: 1024 }
 });
@@ -55,16 +62,14 @@ async function uploadToAzure(buffer, ext) {
   return block.url;
 }
 
-// --- 이미지 기반 분석 헬퍼 (LLM + Google Search 툴) ---
+// --- 이미지 기반 분석 헬퍼 ---
 async function analyzeImageWithGemini(buffer) {
-  // 1) 이미지 바이트 → Generative AI용 Part
   const imagePart = GenTypes.Part.fromBytes({
     data:     buffer,
     mimeType: 'image/jpeg'
   });
-  // 2) 프롬프트 Part (간단히 의도 전달)
   const textPart  = GenTypes.Part.fromText({
-    text: `이 이미지는 수목의 병해충 또는 증상을 촬영한 것입니다. 
+    text: `이 이미지는 수목의 병해충 또는 증상을 촬영한 것입니다.
 아래 이미지에 나타난 병해충/병증 이름과,
 피해 원인, 방제 방법을 JSON 형식으로 출력해 주세요:
 {
@@ -76,10 +81,9 @@ async function analyzeImageWithGemini(buffer) {
 
   const contents = [{
     role:  'user',
-    parts: [ textPart, imagePart ]
+    parts: [textPart, imagePart]
   }];
 
-  // 3) 도구(tool)로 Google Search 사용 권한 부여
   const config = GenTypes.GenerateContentConfig.fromPartial({
     tools: [
       GenTypes.Tool.fromPartial({ googleSearch: {} })
@@ -87,17 +91,10 @@ async function analyzeImageWithGemini(buffer) {
     responseMimeType: 'application/json'
   });
 
-  // 4) 모델 호출
-  const result = await genModel.generateContent({
-    contents,
-    config
-  });
-
-  // 5) 원시 텍스트 꺼내기
-  const raw = result.response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const result = await genModel.generateContent({ contents, config });
+  const raw    = result.response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
   console.log('Raw Gemini response:', raw);
 
-  // 6) JSON 블록만 추출 & 파싱
   const match = raw.match(/\{[\s\S]*\}/);
   if (!match) throw new Error('Gemini가 JSON을 반환하지 않았습니다.');
   return JSON.parse(match[0]);
@@ -111,23 +108,13 @@ app.post('/api/analyze', async (req, res) => {
       return res.status(400).json({ error: 'imageBase64 필수입니다.' });
     }
 
-    // Base64 → Buffer
-    const buffer = Buffer.from(imageBase64, 'base64');
-    // 파일 확장자 추측
-    const ext = imageBase64.startsWith('iVBOR') ? 'png' : 'jpg';
-    // 1) Blob 저장
+    const buffer   = Buffer.from(imageBase64, 'base64');
+    const ext      = imageBase64.startsWith('iVBOR') ? 'png' : 'jpg';
     const imageUrl = await uploadToAzure(buffer, ext);
 
-    // 2) 이미지 기반 분석
     const { pest, cause, remedy } = await analyzeImageWithGemini(buffer);
 
-    // 3) 응답
-    return res.json({
-      imageUrl,
-      pest,
-      cause,
-      remedy
-    });
+    return res.json({ imageUrl, pest, cause, remedy });
   } catch (e) {
     console.error(e);
     return res.status(500).json({ error: e.message });
