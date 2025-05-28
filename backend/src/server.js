@@ -29,7 +29,7 @@ const vertexAI = new VertexAI({
 });
 const genModel = vertexAI.getGenerativeModel({
   publisher: 'google',
-  model:     'gemini-pro-vision',   // 이미지 입력 지원 모델
+  model:     'gemini-2.0-flash-001',   // 이미지 입력 지원 모델
   safetySettings: [
     {
       category:  HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
