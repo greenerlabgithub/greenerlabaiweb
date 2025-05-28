@@ -97,7 +97,8 @@ ${rawText}
   console.log(JSON.stringify(resp, null, 2));
 
   // resp.candidates[0].content.parts[0].text 에 JSON 혹은 코드 블록이 들어있음
-  const raw = resp.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const raw = resp.response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
   // 코드블록(```json ...```) 안에서도 JSON만 꺼내기
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
