@@ -1,48 +1,48 @@
 // server.js
-import express from 'express';
-import cors from 'cors';
-import bodyParser from 'body-parser';
-import { BlobServiceClient } from '@azure/storage-blob';
-import vision from '@google-cloud/vision';
-import { VertexAI, HarmCategory, HarmBlockThreshold } from '@google-cloud/vertexai';
-import axios from 'axios';
-import dotenv from 'dotenv';
-import { v4 as uuidv4 } from 'uuid';
+import express                   from 'express';
+import cors                      from 'cors';
+import bodyParser                from 'body-parser';
+import { BlobServiceClient }     from '@azure/storage-blob';
+import vision                    from '@google-cloud/vision';
+import VertexAIPkg               from '@google-cloud/vertexai';
+import dotenv                    from 'dotenv';
+import { v4 as uuidv4 }          from 'uuid';
 
 dotenv.config();
-const app = express();
+const app  = express();
 const PORT = process.env.PORT || 4000;
+
+// Vertex AI SDK default import 후 구조분해
+const { VertexAI, HarmCategory, HarmBlockThreshold } = VertexAIPkg;
+
+// Azure Blob 초기화
+const blobSvc         = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
+const containerClient = blobSvc.getContainerClient(process.env.AZURE_STORAGE_CONTAINER);
+
+// GCP Vision(사용하지 않으시면 지워도 됩니다) & Vertex AI 초기화
+const visionClient = new vision.ImageAnnotatorClient();
+const vertexAI     = new VertexAI({
+  project:  process.env.GOOGLE_CLOUD_PROJECT,
+  location: process.env.VERTEX_LOCATION,
+});
+const genModel = vertexAI.getGenerativeModel({
+  publisher: 'google',
+  model:     'gemini-pro-vision',   // 또는 'gemini-2.0-flash-001' (텍스트+이미지)
+  safetySettings: [
+    {
+      category:  HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+      threshold: HarmBlockThreshold.BLOCK_HIGH
+    }
+  ],
+  generationConfig: { maxOutputTokens: 1024 }
+});
 
 // 미들웨어
 app.use(cors());
 app.use(bodyParser.json({ limit: '100mb' }));
 app.use(bodyParser.urlencoded({ limit: '100mb', extended: true }));
 
-// Azure Blob 초기화
-const blobSvc = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
-const containerClient = blobSvc.getContainerClient(process.env.AZURE_STORAGE_CONTAINER);
-
-// GCP Vision & Vertex AI 초기화
-const visionClient = new vision.ImageAnnotatorClient();
-const vertexAI    = new VertexAI({
-  project:  process.env.GOOGLE_CLOUD_PROJECT,
-  location: process.env.VERTEX_LOCATION,
-});
-const genModel = vertexAI.getGenerativeModel({
-  publisher: 'google',              // 퍼블리셔 명시
-  model:     'gemini-2.0-flash-001',
-  safetySettings: [
-    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-      threshold: HarmBlockThreshold.BLOCK_HIGH }
-  ],
-  generationConfig: { maxOutputTokens: 1024 }
-});
-
-// Custom Search 설정
-const CS_API_KEY = process.env.CUSTOM_SEARCH_API_KEY;
-const CS_CX      = process.env.CUSTOM_SEARCH_CX;
-
-// 업로드 헬퍼
+// 이미지를 Azure Blob Storage에 업로드
 async function uploadToAzure(buffer, ext) {
   const blobName = `upload/${Date.now()}_${uuidv4()}.${ext}`;
   const block    = containerClient.getBlockBlobClient(blobName);
@@ -52,102 +52,69 @@ async function uploadToAzure(buffer, ext) {
   return block.url;
 }
 
-// Vision 후보 추출
-async function detectCandidates(buffer) {
-  const [webRes]   = await visionClient.webDetection({ image: { content: buffer } });
-  const candidates = (webRes.webDetection.webEntities || [])
-    .map(e => ({ description: e.description, score: e.score || 0 }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5);
-  return candidates;
-}
+// 이미지 데이터만 가지고 Gemini Pro Vision 호출 → JSON 결과 파싱
+async function analyzeImageWithGemini(buffer) {
+  // inline_data 파트: base64 이미지 + mimeType
+  const b64       = buffer.toString('base64');
+  const imagePart = { inline_data: { data: b64, mimeType: 'image/jpeg' } };
 
-// Custom Search
-async function customSearch(query) {
-  const url = 'https://www.googleapis.com/customsearch/v1';
-  const res = await axios.get(url, {
-    params: { key: CS_API_KEY, cx: CS_CX, q: query }
-  });
-  return (res.data.items || []).map(i => i.snippet).join(' ');
-}
-
-// Gemini → JSON 파싱 헬퍼
-async function extractJsonWithGemini(rawText, label, key) {
-  // JSON 모드 + 엄격 지시
-  const prompt = `
-"${label}"의 ${ key === 'cause' ? '피해 원인' : '방제 방법' }을
-아래 JSON 형식으로 **정확히** 출력해 주세요 (절대로 다른 설명 없이):
+  // 단순 텍스트 프롬프트 (의도 전달)
+  const textPart  = {
+    text: `
+위 이미지는 수목의 병해충 또는 증상을 촬영한 것입니다.
+이미지 자체를 분석해서, JSON으로 다음 세 필드를 채워주세요:
 {
-  "${key}": "여기에 텍스트"
-}
-
-내용:
-${rawText}
-  `.trim();
-
-  const contents = [{ role: 'user', parts: [{ text: prompt }] }];
-  const config = {
-    responseMimeType: 'application/json',
-    generationConfig: { maxOutputTokens: 512 }
+  "pest": "병해충 이름 또는 증상",
+  "cause": "피해 원인",
+  "remedy": "방제 방법"
+}`
   };
 
-  const resp = await genModel.generateContent({ contents, config });
-  // 전체 응답 로그 (디버깅용)
-  console.log(`Raw Gemini JSON response for key '${key}':`);
-  console.log(JSON.stringify(resp, null, 2));
+  const contents = [{ role: 'user', parts: [ textPart, imagePart ] }];
 
-  // resp.candidates[0].content.parts[0].text 에 JSON 혹은 코드 블록이 들어있음
-  const raw = resp.response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  // Google Search 도구 허용 (모델이 필요 시 웹 검색)
+  const tools  = [{ googleSearch: {} }];
+  const config = { tools, responseMimeType: 'application/json' };
 
-  // 코드블록(```json ...```) 안에서도 JSON만 꺼내기
-  const jsonMatch = raw.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    console.warn(`JSON 파싱 실패. Raw response for ${key}:`, raw);
-    return '';
-  }
+  // 모델 호출
+  const result = await genModel.generateContent({ contents, config });
+  const raw    = result.response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  console.log('Raw Gemini response:', raw);
 
-  try {
-    const obj = JSON.parse(jsonMatch[0]);
-    return obj[key] || '';
-  } catch (e) {
-    console.warn(`JSON 파싱 에러 (${key}):`, e);
-    console.warn('Problematic JSON:', jsonMatch[0]);
-    return '';
-  }
+  // JSON 블록만 추출
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('Gemini가 JSON을 반환하지 않았습니다.');
+  return JSON.parse(match[0]);
 }
 
-// 메인 엔드포인트
+// 메인 엔드포인트: 이미지(Base64) 받으면 업로드 + 분석 → 응답
 app.post('/api/analyze', async (req, res) => {
   try {
     const { imageBase64 } = req.body;
-    if (!imageBase64) return res.status(400).json({ error: 'imageBase64 필수' });
-
-    // 1) 저장
-    const buffer   = Buffer.from(imageBase64, 'base64');
-    const ext      = imageBase64.startsWith('iVBOR') ? 'png' : 'jpg';
-    const imageUrl = await uploadToAzure(buffer, ext);
-
-    // 2) 후보
-    const candidates = await detectCandidates(buffer);
-    const label      = candidates[0]?.description || null;
-    if (!label) {
-      return res.json({ candidates, label: null, cause: '', remedy: '', imageUrl });
+    if (!imageBase64) {
+      return res.status(400).json({ error: 'imageBase64 필수입니다.' });
     }
 
-    // 3) 검색
-    const causeText  = await customSearch(`${label} 피해 원인`);
-    const remedyText = await customSearch(`${label} 방제 방법`);
+    // 1) Base64 → Buffer
+    const buffer = Buffer.from(imageBase64, 'base64');
+    const ext    = imageBase64.startsWith('iVBOR') ? 'png' : 'jpg';
 
-    // 4) Gemini → JSON 파싱
-    const cause  = await extractJsonWithGemini(causeText,  label, 'cause');
-    const remedy = await extractJsonWithGemini(remedyText, label, 'remedy');
+    // 2) Azure Blob에 저장 (선택 사항)
+    const imageUrl = await uploadToAzure(buffer, ext);
 
-    // 5) 응답
-    res.json({ candidates, label, cause, remedy, imageUrl });
+    // 3) Gemini Pro Vision으로 분석 (이미지만 사용)
+    const { pest, cause, remedy } = await analyzeImageWithGemini(buffer);
+
+    // 4) 클라이언트 응답
+    return res.json({ imageUrl, pest, cause, remedy });
+
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: e.message });
+    return res.status(500).json({ error: e.message });
   }
 });
 
-app.listen(PORT, () => console.log(`✅ API listening on port ${PORT}`));
+// 서버 시작
+app.listen(PORT, () => {
+  console.log(`✅ API listening on port ${PORT}`);
+});
