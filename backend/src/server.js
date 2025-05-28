@@ -27,7 +27,7 @@ const vertexAI     = new VertexAI({
 });
 const genModel = vertexAI.getGenerativeModel({
   publisher: 'google',
-  model:     'gemini-pro-vision',   // 또는 'gemini-2.0-flash-001' (텍스트+이미지)
+  model:     'gemini-2.0-flash-001',   // 또는 'gemini-2.0-flash-001' (텍스트+이미지)
   safetySettings: [
     {
       category:  HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
