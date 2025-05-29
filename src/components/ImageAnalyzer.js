@@ -40,22 +40,21 @@ export default function ImageAnalyzer() {
       </button>
 
       {result && (
-        <div style={{ marginTop: 20 }}>
-          <h3>🔖 예측된 병해충</h3>
-          <p>{result.pest || '알 수 없음'}</p>
- 
-          <h3>⚠️ 피해 원인</h3>
-          <p>{result.cause || '정보 없음'}</p>
- 
-          <h3>🛠️ 방제 방법</h3>
-          <p>{result.remedy || '정보 없음'}</p>
- 
-          <h3>📷 업로드 이미지</h3>
-          <img
-            src={result.imageUrl}
-            alt="분석된 이미지"
-            style={{ maxWidth: '100%' }}
-          />
+        <div>
+          {result.predictions.map((item, i) => (
+            <div key={i}>
+              <h4>후보 #{i+1}: {item.pest}</h4>
+              <p>원인:</p>
+              <ul>
+                {item.cause.map((c,j) => <li key={j}>{c}</li>)}
+              </ul>
+              <p>방제:</p>
+              <ul>
+                {item.remedy.map((r,j) => <li key={j}>{r}</li>)}
+              </ul>
+            </div>
+          ))}
+          <img src={result.imageUrl} alt="분석된 이미지" />
         </div>
       )}
     </div>
