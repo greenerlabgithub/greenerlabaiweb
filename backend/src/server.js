@@ -169,10 +169,8 @@ app.post('/api/analyze', async (req, res) => {
     const webInfo = await webDetect(buffer);
 
     // C) LLM + WebDetection → JSON 파싱
-    const predictions = await analyzeImageWithGemini(buffer);
-
-    return res.json({ imageUrl, bestGuess:webInfo.bestGuess, entities:webInfo.entities, similar:webInfo.similar, predictions });
-    
+    const predictions = await analyzeWithLensLike(buffer, webInfo);
+    return res.json({ imageUrl, predictions });
   } catch(e) {
     console.error(e);
     res.status(500).json({ error: e.message });
