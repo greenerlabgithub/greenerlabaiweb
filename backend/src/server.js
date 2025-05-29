@@ -124,12 +124,34 @@ JSON 배열 형식으로 출력해 주세요.
     responseMimeType:'application/json'
   };
   const result = await genModel.generateContent({ contents, config });
-  const raw    = result.response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  console.log('Raw Lens-like JSON:', raw);
+  const raw = result.response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  console.log('Raw Gemini response:', raw);
 
-  const match = raw.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error('JSON 블록을 못 찾았습니다.');
-  return JSON.parse(match[0]);
+  // 1) JSON 배열 블록 추출 시도
+  let jsonString = '';
+  const arrayMatch = raw.match(/\[[\s\S]*\]/);
+  if (arrayMatch) {
+    jsonString = arrayMatch[0];
+  } else {
+    // 2) 배열이 없으면 객체 추출
+    const objMatch = raw.match(/\{[\s\S]*\}/);
+    if (!objMatch) {
+      throw new Error('Gemini가 JSON을 반환하지 않았습니다.');
+    }
+    jsonString = objMatch[0];
+  }
+
+  // 3) trailing comma 제거
+  jsonString = jsonString.replace(/,\s*([\]}])/g, '$1');
+
+  // 4) 파싱
+  try {
+    return JSON.parse(jsonString);
+  } catch (e) {
+    console.error('JSON 파싱 실패:', e);
+    console.error('문제의 JSON 문자열:', jsonString);
+    throw e;
+  }
 }
 
 // 엔드포인트
