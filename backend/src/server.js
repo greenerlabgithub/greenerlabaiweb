@@ -61,15 +61,24 @@ async function webDetect(buffer) {
 async function analyzeWithLensLike(buffer, webInfo) {
   const b64 = buffer.toString('base64');
   const imagePart = { inline_data: { data: b64, mimeType:'image/jpeg' } };
+  const [sim1, sim2, sim3] = webInfo.similar;
+  const top3 = [
+    sim1 || '없음',
+    sim2 || '없음',
+    sim3 || '없음'
+  ];
   const textPart  = {
     text: `
 아래 정보는 Google Lens의 Web Detection 결과입니다.
 Best-Guess Labels: ${webInfo.bestGuess.join(', ') || '없음'}
 Web Entities: ${webInfo.entities.join(', ') || '없음'}
-Similar Images: 
-${webInfo.similar.slice(0,5).join('\n') || '없음'}
+아래 URL 3개는 Web Detection 결과 중
+“가장 시각적으로 유사”하다고 판단된 상위 3개 이미지입니다:
+1) ${top3[0]}
+2) ${top3[1]}
+3) ${top3[2]}
 
-아래 이미지를 분석하여, **3가지 병해충(또는 증상) 후보**를 뽑고,
+아래 이미지를 분석하고, 이 3개의 이미지를 모두 참고하여, **3가지 병해충(또는 증상) 후보**를 뽑고,
 각 후보마다 **피해 원인(cause)** 과 **방제 방법(remedy)** 3가지씩을
 JSON 배열 형식으로 출력해 주세요.  
 국내에 서식하는 병해충, 국내에서 발생하는 병증 위주의 답변을 합니다.
