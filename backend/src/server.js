@@ -69,7 +69,7 @@ Web Entities: ${webInfo.entities.join(', ') || '없음'}
 Similar Images: 
 ${webInfo.similar.slice(0,5).join('\n') || '없음'}
 
-아래 이미지를 분석하여, 이 이미지의 유사한 순서대로 **3가지 병해충(또는 증상) 후보**를 뽑고,
+아래 이미지를 분석함과 동시에 Google Lens의 Web Detection 결과를 참고하여 이미지의 유사한 순서대로 **3가지 병해충(또는 증상) 후보**를 뽑고,
 각 후보마다 **피해 원인(cause)** 과 **방제 방법(remedy)** 3가지씩을
 JSON 배열 형식으로 출력해 주세요.  
 국내에 서식하는 병해충, 국내에서 발생하는 병증 위주의 답변을 합니다.
