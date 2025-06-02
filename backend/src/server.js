@@ -89,6 +89,7 @@ async function analyzeWithLensLike(buffer, webInfo) {
 
   const textPart = {
     text: `
+  모든 답변을 반드시 **한국어** 로만 작성해 주세요.
   아래 3개 라벨은 Google Lens Web Detection 결과로부터
   “빈도 순으로 가장 많이 나온” 상위 3개 병해충(혹은 증상) 후보입니다:
   1) ${top3Candidates[0]}
