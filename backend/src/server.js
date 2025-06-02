@@ -125,11 +125,13 @@ async function analyzeWithLensLike(buffer, webInfo) {
 
 // analyzeWithLensLike 함수 내, “빈도 순 후보” 대신 “Best-Guess 상위 3개”를 사용하도록 변경
 
-const top3Candidates = [
-  webInfo.bestGuess[0] || '없음',
-  webInfo.bestGuess[1] || '없음',
-  webInfo.bestGuess[2] || '없음'
+const bestGuessLabels = wd.bestGuessLabels?.map(l => l.label) || [];
+const top3BestGuess = [
+  bestGuessLabels[0] || '없음',
+  bestGuessLabels[1] || '없음',
+  bestGuessLabels[2] || '없음'
 ];
+console.log('Best-Guess Top3 Labels:', top3BestGuess);
 
 const textPart = {
   text: `
