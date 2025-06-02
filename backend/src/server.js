@@ -46,14 +46,33 @@ async function uploadToAzure(buffer, ext) {
   return block.url;
 }
 
-// 2) Vision Web Detection
+// 2) Vision Web Detection (수정)
 async function webDetect(buffer) {
-  const [res] = await visionClient.webDetection({ image:{ content: buffer } });
-  const wd   = res.webDetection || {};
+  const [res] = await visionClient.webDetection({ image: { content: buffer } });
+  const wd = res.webDetection || {};
+
+  // 1) Web Entities 이름만 추출
+  //    예: ["장미등에잎벌", "극동등에잎벌", "장미등에잎벌", ...]
+  const entitiesRaw = wd.webEntities
+    ? wd.webEntities.map(e => e.description).filter(Boolean)
+    : [];
+
+  // 2) 등장 횟수 계산 (빈도수)
+  const freqMap = {};
+  for (const ent of entitiesRaw) {
+    freqMap[ent] = (freqMap[ent] || 0) + 1;
+  }
+  // 3) 빈도수 기준 내림차순 정렬된 엔티티 리스트
+  const sortedEntities = Object.entries(freqMap)
+    .sort((a, b) => b[1] - a[1])   // [ ["장미등에잎벌", 5], ["극동등에잎벌", 3], ... ]
+    .map(entry => entry[0]);      // ["장미등에잎벌", "극동등에잎벌", ...]
+
   return {
     bestGuess: wd.bestGuessLabels?.map(l => l.label) || [],
     entities:  wd.webEntities?.map(e => e.description) || [],
-    similar:   wd.visuallySimilarImages?.map(i => i.url) || []
+    similar:   wd.visuallySimilarImages?.map(i => i.url) || [],
+    // 새로 추가: 빈도수 순 후보 라벨
+    sortedEntities
   };
 }
 
@@ -61,65 +80,45 @@ async function webDetect(buffer) {
 async function analyzeWithLensLike(buffer, webInfo) {
   const b64 = buffer.toString('base64');
   const imagePart = { inline_data: { data: b64, mimeType:'image/jpeg' } };
-  const textPart  = {
+  // analyzeWithLensLike 함수에 추가/변경할 부분
+  const top3Candidates = [
+    webInfo.sortedEntities[0] || '없음',
+    webInfo.sortedEntities[1] || '없음',
+    webInfo.sortedEntities[2] || '없음'
+  ];
+
+  const textPart = {
     text: `
-아래 정보는 Google Lens의 Web Detection 결과입니다.
-Best-Guess Labels: ${webInfo.bestGuess.join(', ') || '없음'}
-Web Entities: ${webInfo.entities.join(', ') || '없음'}
-Similar Images: 
-${webInfo.similar.slice(0,5).join('\n') || '없음'}
+  아래 3개 라벨은 Google Lens Web Detection 결과로부터
+  “빈도 순으로 가장 많이 나온” 상위 3개 병해충(혹은 증상) 후보입니다:
+  1) ${top3Candidates[0]}
+  2) ${top3Candidates[1]}
+  3) ${top3Candidates[2]}
 
-아래 이미지를 분석함과 동시에 Google Lens의 Web Detection 결과를 참고하여 이미지의 유사한 순서대로 **3가지 병해충(또는 증상) 후보**를 뽑고,
-각 후보마다 **피해 원인(cause)** 과 **방제 방법(remedy)** 3가지씩을
-JSON 배열 형식으로 출력해 주세요.  
-국내에 서식하는 병해충, 국내에서 발생하는 병증 위주의 답변을 합니다.
-병해충의 경우 어떤 종의 어떤 것인지 유사한 것으로 찾아서 답변합니다. 예) 선녀벌레(뾰족날개선녀벌레) 
-병증의 경우 어떤 수목인지 먼저 파악하고 해당 수목에서 많이 발생하는 병증 위주로 찾아서 답변합니다. 예) 철쭉 - 떡병, 민떡병 등등 - 민떡병
+  이 3가지 후보를 참고하여, JSON 배열로 아래 구조 그대로
+  “pest(병해충 이름)”, “cause(원인 목록)”, “remedy(방제 목록)” 을
+  각각 3가지씩 반환해 주세요. (다른 텍스트 절대 금지)
 
-반드시 아래와 같은 구조로 응답해 주세요(다른 텍스트는 일절 금지):
+  [
+    {
+      "pest":   "첫 번째 병해충 이름",
+      "cause":  ["원인1","원인2","원인3"],
+      "remedy": ["방제1","방제2","방제3"]
+    },
+    {
+      "pest":   "두 번째 병해충 이름",
+      "cause":  ["원인1","원인2","원인3"],
+      "remedy": ["방제1","방제2","방제3"]
+    },
+    {
+      "pest":   "세 번째 병해충 이름",
+      "cause":  ["원인1","원인2","원인3"],
+      "remedy": ["방제1","방제2","방제3"]
+    }
+  ]
+  `
+};
 
-[
-  {
-    "pest": "첫 번째 병해충 이름",
-    "cause": [
-      "첫 번째 원인",
-      "두 번째 원인",
-      "세 번째 원인"
-    ],
-    "remedy": [
-      "첫 번째 방제 방법",
-      "두 번째 방제 방법",
-      "세 번째 방제 방법"
-    ]
-  },
-  {
-    "pest": "두 번째 병해충 이름",
-    "cause": [
-      "...",
-      "...",
-      "..."
-    ],
-    "remedy": [
-      "...",
-      "...",
-      "..."
-    ]
-  },
-  {
-    "pest": "세 번째 병해충 이름",
-    "cause": [
-      "...",
-      "...",
-      "..."
-    ],
-    "remedy": [
-      "...",
-      "...",
-      "..."
-    ]
-  }
-]`
-  };
 
   const contents = [{ role:'user', parts:[ textPart, imagePart ] }];
   const config   = {
