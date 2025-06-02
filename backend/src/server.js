@@ -103,7 +103,17 @@ async function webDetect(buffer) {
   console.log('2) 국내 필터링된 URLs (koreanSimilar):', koreanSimilar);
   console.log('3) 최종 top 3 visually similar:', filteredSimilar);
   console.log('4) Web Entities 빈도 순 (sortedEntities):', sortedEntities);
-  console.log('5) Best-Guess Labels:', wd.bestGuessLabels?.map(l => l.label) || []);
+  // wd.bestGuessLabels는 webDetect 내부에서 사용할 수 있으므로 그대로 사용
+  const bestGuessLabels = wd.bestGuessLabels?.map(l => l.label) || [];
+  console.log('5) Best-Guess Labels:', bestGuessLabels);
+
+  // Best-Guess 상위 3개만 추출해서 추가 출력
+  const top3BestGuess = [
+    bestGuessLabels[0] || '없음',
+    bestGuessLabels[1] || '없음',
+    bestGuessLabels[2] || '없음'
+  ];
+  console.log('Best-Guess Top3 Labels:', top3BestGuess);
   console.log('-----------------------\n');
 
   return {
@@ -125,13 +135,11 @@ async function analyzeWithLensLike(buffer, webInfo) {
 
 // analyzeWithLensLike 함수 내, “빈도 순 후보” 대신 “Best-Guess 상위 3개”를 사용하도록 변경
 
-const bestGuessLabels = wd.bestGuessLabels?.map(l => l.label) || [];
-const top3BestGuess = [
-  bestGuessLabels[0] || '없음',
-  bestGuessLabels[1] || '없음',
-  bestGuessLabels[2] || '없음'
+const top3Candidates = [
+  webInfo.bestGuess[0] || '없음',
+  webInfo.bestGuess[1] || '없음',
+  webInfo.bestGuess[2] || '없음'
 ];
-console.log('Best-Guess Top3 Labels:', top3BestGuess);
 
 const textPart = {
   text: `
