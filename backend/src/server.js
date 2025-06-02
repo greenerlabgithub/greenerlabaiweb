@@ -46,35 +46,75 @@ async function uploadToAzure(buffer, ext) {
   return block.url;
 }
 
-// 2) Vision Web Detection (수정)
+// 기존 webDetect 함수 자리에 아래 코드로 덮어쓰기
 async function webDetect(buffer) {
   const [res] = await visionClient.webDetection({ image: { content: buffer } });
   const wd = res.webDetection || {};
 
-  // 1) Web Entities 이름만 추출
-  //    예: ["장미등에잎벌", "극동등에잎벌", "장미등에잎벌", ...]
+  // ① Web Entities 이름만 추출
+  //    예: ["장미등에잎벌", "극동등에잎벌", "장미등에잎벌", …]
   const entitiesRaw = wd.webEntities
     ? wd.webEntities.map(e => e.description).filter(Boolean)
     : [];
 
-  // 2) 등장 횟수 계산 (빈도수)
+  // ② 등장 횟수 계산 (빈도수)
   const freqMap = {};
   for (const ent of entitiesRaw) {
     freqMap[ent] = (freqMap[ent] || 0) + 1;
   }
-  // 3) 빈도수 기준 내림차순 정렬된 엔티티 리스트
+  // ③ 빈도수 기준 내림차순 정렬된 엔티티 리스트
+  //    예: ["장미등에잎벌", "극동등에잎벌", …]
   const sortedEntities = Object.entries(freqMap)
-    .sort((a, b) => b[1] - a[1])   // [ ["장미등에잎벌", 5], ["극동등에잎벌", 3], ... ]
-    .map(entry => entry[0]);      // ["장미등에잎벌", "극동등에잎벌", ...]
+    .sort((a, b) => b[1] - a[1])
+    .map(entry => entry[0]);
+
+  // ④ 원본 visuallySimilarImages URL 목록
+  const allSimilar = wd.visuallySimilarImages
+    ? wd.visuallySimilarImages.map(i => i.url)
+    : [];
+
+  // ⑤ “국내용 도메인” 필터링 (.kr, naver.com, daum.net 등)
+  const koreanSimilar = allSimilar.filter(url => {
+    try {
+      const host = new URL(url).hostname;
+      return (
+        host.endsWith('.kr') ||
+        host.includes('naver.com') ||
+        host.includes('daum.net')
+      );
+    } catch {
+      return false;
+    }
+  });
+
+  // ⑥ 국내 필터링만 모아도 3개 미만이면, 부족분을 allSimilar에서 채움
+  const topSimilar = [...koreanSimilar];
+  for (const url of allSimilar) {
+    if (topSimilar.length >= 3) break;
+    if (!topSimilar.includes(url)) {
+      topSimilar.push(url);
+    }
+  }
+  const filteredSimilar = topSimilar.slice(0, 3);
+
+  // ⑦ 디버그용 로그 출력
+  console.log('--- WebDetect Debug ---');
+  console.log('1) 원본 visuallySimilarImages URLs:', allSimilar);
+  console.log('2) 국내 필터링된 URLs (koreanSimilar):', koreanSimilar);
+  console.log('3) 최종 top 3 visually similar:', filteredSimilar);
+  console.log('4) Web Entities 빈도 순 (sortedEntities):', sortedEntities);
+  console.log('5) Best-Guess Labels:', wd.bestGuessLabels?.map(l => l.label) || []);
+  console.log('-----------------------\n');
 
   return {
-    bestGuess: wd.bestGuessLabels?.map(l => l.label) || [],
-    entities:  wd.webEntities?.map(e => e.description) || [],
-    similar:   wd.visuallySimilarImages?.map(i => i.url) || [],
-    // 새로 추가: 빈도수 순 후보 라벨
-    sortedEntities
+    bestGuess:       wd.bestGuessLabels?.map(l => l.label) || [],
+    entities:        wd.webEntities?.map(e => e.description) || [],
+    allSimilar,      // (디버깅용으로 client에 반환할 수도 있음)
+    filteredSimilar, // 국내 필터링 후 상위 3개 URL
+    sortedEntities   // 엔티티별 빈도 순 후보 라벨
   };
 }
+
 
 // 3) Gemini에 Web Detection 결과+이미지 원본을 넘겨서 JSON 파싱
 async function analyzeWithLensLike(buffer, webInfo) {
