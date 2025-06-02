@@ -121,44 +121,49 @@ async function analyzeWithLensLike(buffer, webInfo) {
   const b64 = buffer.toString('base64');
   const imagePart = { inline_data: { data: b64, mimeType:'image/jpeg' } };
   // analyzeWithLensLike 함수에 추가/변경할 부분
-  const top3Candidates = [
-    webInfo.sortedEntities[0] || '없음',
-    webInfo.sortedEntities[1] || '없음',
-    webInfo.sortedEntities[2] || '없음'
-  ];
+// webDetect 반환값에 이미 bestGuess가 포함되어 있으므로 별도 수정 불필요
 
-  const textPart = {
-    text: `
-  모든 답변을 반드시 **한국어** 로만 작성해 주세요.
-  아래 3개 라벨은 Google Lens Web Detection 결과로부터
-  “빈도 순으로 가장 많이 나온” 상위 3개 병해충(혹은 증상) 후보입니다:
-  1) ${top3Candidates[0]}
-  2) ${top3Candidates[1]}
-  3) ${top3Candidates[2]}
+// analyzeWithLensLike 함수 내, “빈도 순 후보” 대신 “Best-Guess 상위 3개”를 사용하도록 변경
 
-  이 3가지 후보를 참고하여, JSON 배열로 아래 구조 그대로
-  “pest(병해충 이름)”, “cause(원인 목록)”, “remedy(방제 목록)” 을
-  각각 3가지씩 반환해 주세요. (다른 텍스트 절대 금지)
+const top3Candidates = [
+  webInfo.bestGuess[0] || '없음',
+  webInfo.bestGuess[1] || '없음',
+  webInfo.bestGuess[2] || '없음'
+];
 
-  [
-    {
-      "pest":   "첫 번째 병해충 이름",
-      "cause":  ["원인1","원인2","원인3"],
-      "remedy": ["방제1","방제2","방제3"]
-    },
-    {
-      "pest":   "두 번째 병해충 이름",
-      "cause":  ["원인1","원인2","원인3"],
-      "remedy": ["방제1","방제2","방제3"]
-    },
-    {
-      "pest":   "세 번째 병해충 이름",
-      "cause":  ["원인1","원인2","원인3"],
-      "remedy": ["방제1","방제2","방제3"]
-    }
-  ]
-  `
+const textPart = {
+  text: `
+모든 답변을 반드시 **한국어** 로만 작성해 주세요.
+
+아래 3개 라벨은 Vision API의 Best-Guess Labels 상위 3개입니다:
+1) ${top3Candidates[0]}
+2) ${top3Candidates[1]}
+3) ${top3Candidates[2]}
+
+이 3가지 후보를 참고하여, JSON 배열로 **3가지 병해충(혹은 증상) 후보**와
+각 후보마다 **피해 원인(cause)** 과 **방제 방법(remedy)** 3가지씩을
+아래 구조 그대로 출력해 주세요. (다른 텍스트 절대 금지)
+
+[
+  {
+    "pest": "첫 번째 병해충 이름",
+    "cause": ["원인1","원인2","원인3"],
+    "remedy": ["방제1","방제2","방제3"]
+  },
+  {
+    "pest": "두 번째 병해충 이름",
+    "cause": ["원인1","원인2","원인3"],
+    "remedy": ["방제1","방제2","방제3"]
+  },
+  {
+    "pest": "세 번째 병해충 이름",
+    "cause": ["원인1","원인2","원인3"],
+    "remedy": ["방제1","방제2","방제3"]
+  }
+]
+`
 };
+
 
 
   const contents = [{ role:'user', parts:[ textPart, imagePart ] }];
