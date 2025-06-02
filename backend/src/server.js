@@ -135,11 +135,17 @@ async function analyzeWithLensLike(buffer, webInfo) {
 
 // analyzeWithLensLike 함수 내, “빈도 순 후보” 대신 “Best-Guess 상위 3개”를 사용하도록 변경
 
-const top3Candidates = [
-  webInfo.bestGuess[0] || '없음',
-  webInfo.bestGuess[1] || '없음',
-  webInfo.bestGuess[2] || '없음'
-];
+// 1순위는 Best-Guess 하나, 2∙3순위는 sortedEntities에서 골라서 배열 생성
+const primary = webInfo.bestGuess[0] || '없음';
+// sortedEntities에서 primary와 중복되지 않는 상위 2개 추출
+const extras = [];
+for (const ent of webInfo.sortedEntities) {
+  if (ent === primary) continue;
+  extras.push(ent);
+  if (extras.length === 2) break;
+}
+const top3Candidates = [primary, extras[0] || '없음', extras[1] || '없음'];
+
 
 const textPart = {
   text: `
