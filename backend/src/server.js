@@ -168,7 +168,7 @@ async function analyzeWithLensLike(buffer, webInfo) {
 2) ${top3Candidates[1]}
 3) ${top3Candidates[2]}
 
-이 3가지 후보를 참고하여, JSON 배열로 **3가지 병해충(혹은 증상) 후보**와
+이 3가지 후보를 한국어로 번역하여 가장 유사한 정보를 찾아내어 참고하고, JSON 배열로 **3가지 병해충(혹은 증상) 후보**와
 각 후보마다 **피해 원인(cause)** 과 **방제 방법(remedy)** 3가지씩을
 아래 구조 그대로 출력해 주세요. (다른 텍스트 절대 금지)
 
