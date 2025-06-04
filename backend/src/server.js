@@ -46,13 +46,12 @@ async function uploadToAzure(buffer, ext) {
   return block.url;
 }
 
-// 기존 webDetect 함수 자리에 아래 코드로 덮어쓰기
+// 2) Vision Web Detection + 한글 필터링/우선순위 적용
 async function webDetect(buffer) {
   const [res] = await visionClient.webDetection({ image: { content: buffer } });
   const wd = res.webDetection || {};
 
   // ① Web Entities 이름만 추출
-  //    예: ["장미등에잎벌", "극동등에잎벌", "장미등에잎벌", …]
   const entitiesRaw = wd.webEntities
     ? wd.webEntities.map(e => e.description).filter(Boolean)
     : [];
@@ -63,7 +62,6 @@ async function webDetect(buffer) {
     freqMap[ent] = (freqMap[ent] || 0) + 1;
   }
   // ③ 빈도수 기준 내림차순 정렬된 엔티티 리스트
-  //    예: ["장미등에잎벌", "극동등에잎벌", …]
   const sortedEntities = Object.entries(freqMap)
     .sort((a, b) => b[1] - a[1])
     .map(entry => entry[0]);
@@ -73,7 +71,16 @@ async function webDetect(buffer) {
     ? wd.visuallySimilarImages.map(i => i.url)
     : [];
 
-  // ⑤ “국내용 도메인” 필터링 (.kr, naver.com, daum.net 등)
+  // ⑤ naturing.net 도메인 URL만 먼저 필터링
+  const naturingSimilar = allSimilar.filter(url => {
+    try {
+      return new URL(url).hostname.includes('naturing.net');
+    } catch {
+      return false;
+    }
+  });
+
+  // ⑥ “국내용 도메인” 필터링 (.kr, naver.com, daum.net 등)
   const koreanSimilar = allSimilar.filter(url => {
     try {
       const host = new URL(url).hostname;
@@ -87,7 +94,7 @@ async function webDetect(buffer) {
     }
   });
 
-  // ⑥ 국내 필터링만 모아도 3개 미만이면, 부족분을 allSimilar에서 채움
+  // ⑦ 국내 필터링만 모아도 3개 미만이면, 부족분을 allSimilar에서 채움
   const topSimilar = [...koreanSimilar];
   for (const url of allSimilar) {
     if (topSimilar.length >= 3) break;
@@ -97,61 +104,66 @@ async function webDetect(buffer) {
   }
   const filteredSimilar = topSimilar.slice(0, 3);
 
-  // ⑦ 디버그용 로그 출력
+  // ⑧ 최종 우선순위 top 3
+  let finalSimilar = [];
+  if (naturingSimilar.length >= 3) {
+    finalSimilar = naturingSimilar.slice(0, 3);
+  } else {
+    finalSimilar = [
+      ...naturingSimilar,
+      ...filteredSimilar.filter(u => !naturingSimilar.includes(u))
+    ].slice(0, 3);
+  }
+
+  // ⑨ Best-Guess 라벨 원본
+  const rawBestGuess = wd.bestGuessLabels?.map(l => l.label) || [];
+  // ⑩ 한글·공백만 허용하는 필터 (순수 한국어 라벨)
+  const pureKorean = rawBestGuess.filter(label => /^[가-힣\s]+$/.test(label));
+  const bestGuessLabels = pureKorean.length > 0 ? pureKorean : rawBestGuess;
+
+  // ⑪ 디버그용 로그 출력
   console.log('--- WebDetect Debug ---');
   console.log('1) 원본 visuallySimilarImages URLs:', allSimilar);
+  console.log('→ naturing.net URL만 필터링:', naturingSimilar);
   console.log('2) 국내 필터링된 URLs (koreanSimilar):', koreanSimilar);
-  console.log('3) 최종 top 3 visually similar:', filteredSimilar);
-  console.log('4) Web Entities 빈도 순 (sortedEntities):', sortedEntities);
-  // wd.bestGuessLabels는 webDetect 내부에서 사용할 수 있으므로 그대로 사용
-  const bestGuessLabels = wd.bestGuessLabels?.map(l => l.label) || [];
-  console.log('5) Best-Guess Labels:', bestGuessLabels);
-
-  // Best-Guess 상위 3개만 추출해서 추가 출력
-  const top3BestGuess = [
-    bestGuessLabels[0] || '없음',
-    bestGuessLabels[1] || '없음',
-    bestGuessLabels[2] || '없음'
-  ];
-  console.log('Best-Guess Top3 Labels:', top3BestGuess);
+  console.log('3) 기존 국내 필터링 top 3:', filteredSimilar);
+  console.log('4) 최종 우선순위 top 3 (finalSimilar):', finalSimilar);
+  console.log('5) Web Entities 빈도 순 (sortedEntities):', sortedEntities);
+  console.log('6) 원본 Best-Guess Labels:', rawBestGuess);
+  console.log('7) 한글만 필터링한 Best-Guess Labels:', bestGuessLabels);
   console.log('-----------------------\n');
 
   return {
-    bestGuess:       wd.bestGuessLabels?.map(l => l.label) || [],
+    bestGuess:       bestGuessLabels,
     entities:        wd.webEntities?.map(e => e.description) || [],
-    allSimilar,      // (디버깅용으로 client에 반환할 수도 있음)
-    filteredSimilar, // 국내 필터링 후 상위 3개 URL
-    sortedEntities   // 엔티티별 빈도 순 후보 라벨
+    allSimilar,
+    filteredSimilar,
+    naturingSimilar,
+    finalSimilar,
+    sortedEntities
   };
 }
 
-
 // 3) Gemini에 Web Detection 결과+이미지 원본을 넘겨서 JSON 파싱
 async function analyzeWithLensLike(buffer, webInfo) {
-  const b64 = buffer.toString('base64');
+  const b64       = buffer.toString('base64');
   const imagePart = { inline_data: { data: b64, mimeType:'image/jpeg' } };
-  // analyzeWithLensLike 함수에 추가/변경할 부분
-// webDetect 반환값에 이미 bestGuess가 포함되어 있으므로 별도 수정 불필요
 
-// analyzeWithLensLike 함수 내, “빈도 순 후보” 대신 “Best-Guess 상위 3개”를 사용하도록 변경
+  // 1순위: Best-Guess 첫 번째, 2·3순위: sortedEntities에서 추출
+  const primary = webInfo.bestGuess[0] || '없음';
+  const extras = [];
+  for (const ent of webInfo.sortedEntities) {
+    if (ent === primary) continue;
+    extras.push(ent);
+    if (extras.length === 2) break;
+  }
+  const top3Candidates = [primary, extras[0] || '없음', extras[1] || '없음'];
 
-// 1순위는 Best-Guess 하나, 2∙3순위는 sortedEntities에서 골라서 배열 생성
-const primary = webInfo.bestGuess[0] || '없음';
-// sortedEntities에서 primary와 중복되지 않는 상위 2개 추출
-const extras = [];
-for (const ent of webInfo.sortedEntities) {
-  if (ent === primary) continue;
-  extras.push(ent);
-  if (extras.length === 2) break;
-}
-const top3Candidates = [primary, extras[0] || '없음', extras[1] || '없음'];
-
-
-const textPart = {
-  text: `
+  const textPart = {
+    text: `
 모든 답변을 반드시 **한국어** 로만 작성해 주세요.
 
-아래 3개 라벨은 Vision API의 Best-Guess Labels 상위 3개입니다:
+아래 3개 라벨은 Vision API의 Best-Guess Labels 및 엔티티 빈도 순에서 뽑은 후보 3가지입니다:
 1) ${top3Candidates[0]}
 2) ${top3Candidates[1]}
 3) ${top3Candidates[2]}
@@ -178,9 +190,7 @@ const textPart = {
   }
 ]
 `
-};
-
-
+  };
 
   const contents = [{ role:'user', parts:[ textPart, imagePart ] }];
   const config   = {
@@ -191,31 +201,17 @@ const textPart = {
   const raw = result.response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
   console.log('Raw Gemini response:', raw);
 
-  // 1) JSON 배열 블록 추출 시도
-  let jsonString = '';
+  // JSON 배열 블록 추출
   const arrayMatch = raw.match(/\[[\s\S]*\]/);
-  if (arrayMatch) {
-    jsonString = arrayMatch[0];
-  } else {
-    // 2) 배열이 없으면 객체 추출
+  if (!arrayMatch) {
     const objMatch = raw.match(/\{[\s\S]*\}/);
-    if (!objMatch) {
-      throw new Error('Gemini가 JSON을 반환하지 않았습니다.');
-    }
-    jsonString = objMatch[0];
+    if (!objMatch) throw new Error('Gemini가 JSON을 반환하지 않았습니다.');
+    return JSON.parse(objMatch[0].replace(/,\s*([\]}])/g, '$1'));
   }
 
-  // 3) trailing comma 제거
-  jsonString = jsonString.replace(/,\s*([\]}])/g, '$1');
-
-  // 4) 파싱
-  try {
-    return JSON.parse(jsonString);
-  } catch (e) {
-    console.error('JSON 파싱 실패:', e);
-    console.error('문제의 JSON 문자열:', jsonString);
-    throw e;
-  }
+  // trailing comma 제거 후 파싱
+  const jsonString = arrayMatch[0].replace(/,\s*([\]}])/g, '$1');
+  return JSON.parse(jsonString);
 }
 
 // 엔드포인트
@@ -226,7 +222,7 @@ app.post('/api/analyze', async (req, res) => {
 
     // A) 업로드
     const buffer   = Buffer.from(imageBase64,'base64');
-    const ext      = imageBase64.startsWith('iVBOR')?'png':'jpg';
+    const ext      = imageBase64.startsWith('iVBOR') ? 'png' : 'jpg';
     const imageUrl = await uploadToAzure(buffer, ext);
 
     // B) WebDetection
@@ -241,4 +237,4 @@ app.post('/api/analyze', async (req, res) => {
   }
 });
 
-app.listen(PORT, ()=>console.log(`✅ API on ${PORT}`));
+app.listen(PORT, ()=>console.log(`✅ API listening on port ${PORT}`));
