@@ -41,36 +41,27 @@ async function uploadToAzure(buffer, ext='png') {
   return blob.url;
 }
 
-// server.js 中 findTop3 함수 (꼭 이 형태로!)
 async function findTop3(blobUrl) {
-  // 1) search()는 async iterable을 “즉시” 반환하므로 await를 붙이지 않습니다.
-  const iterator = searchClient.search(
-    "*",                // ★ 첫 번째 인자는 반드시 문자열(검색어) 여야 합니다.
-    {
-      vector: {
-        fields:     "content_embedding",
-        vectorizer: process.env.IMAGE_VECTORIZER,
-        imageUrl:   blobUrl,
-        k:          3
-      },
-      select: ["image_document_id"],  // 실제 인덱스 필드명
-      top:    3
-    }
-  );
+  // ① searchDocuments()는 Promise<{ results: Array<…> }> 를 반환합니다.
+  const response = await searchClient.searchDocuments({
+    searchText: "*",                // 필수: 문자열
+    vector: {
+      fields:     "content_embedding",
+      vectorizer: process.env.IMAGE_VECTORIZER,
+      imageUrl:   blobUrl,
+      k:          3
+    },
+    select: ["image_document_id"],  // 실제 인덱스 필드명
+    top:    3
+  });
 
-  // 2) iterator를 for-await-of 로 순회합니다.
-  const docs = [];
-  for await (const result of iterator) {
-    const raw     = result.document.image_document_id || "";
+  // ② response.results는 일반 배열이므로 map/for-of 로 순회합니다.
+  return response.results.map(r => {
+    const raw     = r.document.image_document_id || "";
     const decoded = decodeUriComponent(raw);
-    docs.push({ name: decoded, score: result.score });
-  }
-
-  return docs;
+    return { name: decoded, score: r.score };
+  });
 }
-
-
-
 
 
 // 3) o4-mini에 정보 요청
@@ -101,35 +92,22 @@ async function fetchEntityInfo(name) {
 
 app.post('/api/analyze', async (req, res) => {
   try {
-    const { imageBase64 } = req.body;
-    if (!imageBase64) return res.status(400).json({ error:'imageBase64 필요' });
-
-    // A) 이미지 업로드
-    const buffer = Buffer.from(imageBase64, 'base64');
-    const ext    = imageBase64.startsWith('iVBOR') ? 'png' : 'jpg';
+    // 1) 업로드
     const blobUrl = await uploadToAzure(buffer, ext);
-
-    // B) Top-3 벡터 검색
-    const top3 = await findTop3(blobUrl);
-
-    // C) 각 후보에 대해 o4-mini 호출
-    const results = [];
-    for (const candidate of top3) {
-      const info = await fetchEntityInfo(candidate.name);
-      results.push(info);
-    }
-
-    // D) 최종 응답
-    return res.json({
-      imageUrl: blobUrl,
-      type:     'vector+llm',
-      results   // [ {이름, 정보, 방제방법}, … x3 ]
-    });
+    // 2) 벡터 검색
+    const top3    = await findTop3(blobUrl);
+    // 3) LLM 호출
+    const results = await Promise.all(
+      top3.map(c => fetchEntityInfo(c.name))
+    );
+    // 4) 응답
+    res.json({ imageUrl: blobUrl, type: 'vector+llm', results });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: e.message });
   }
 });
+
 
 const PORT = process.env.PORT||4000;
 app.listen(PORT, ()=> console.log(`API listening on ${PORT}`));
