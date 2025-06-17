@@ -41,29 +41,34 @@ async function uploadToAzure(buffer, ext='png') {
   return blob.url;
 }
 
-// 2) 벡터 검색 → Top 3
+// server.js 中 findTop3 함수 (꼭 이 형태로!)
 async function findTop3(blobUrl) {
-  // 1) search()를 호출할 때 첫 인자는 searchText(문자열)여야 합니다!
-  const iterator = searchClient.search("*", {
-    vector: {
-      fields:     'content_embedding',
-      vectorizer: process.env.IMAGE_VECTORIZER,
-      imageUrl:   blobUrl,
-      k:          3
-    },
-    select: ['image_document_id'],  // 인덱스 실제 필드명
-    top: 3
-  });
+  // 1) search()는 async iterable을 “즉시” 반환하므로 await를 붙이지 않습니다.
+  const iterator = searchClient.search(
+    "*",                // ★ 첫 번째 인자는 반드시 문자열(검색어) 여야 합니다.
+    {
+      vector: {
+        fields:     "content_embedding",
+        vectorizer: process.env.IMAGE_VECTORIZER,
+        imageUrl:   blobUrl,
+        k:          3
+      },
+      select: ["image_document_id"],  // 실제 인덱스 필드명
+      top:    3
+    }
+  );
 
-  // 2) for-await 로 순회 (iterator는 async iterable)
+  // 2) iterator를 for-await-of 로 순회합니다.
   const docs = [];
-  for await (const r of iterator) {
-    const raw     = r.document.image_document_id || '';
+  for await (const result of iterator) {
+    const raw     = result.document.image_document_id || "";
     const decoded = decodeUriComponent(raw);
-    docs.push({ name: decoded, score: r.score });
+    docs.push({ name: decoded, score: result.score });
   }
+
   return docs;
 }
+
 
 
 
