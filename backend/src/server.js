@@ -4,7 +4,7 @@ import cors from 'cors';
 import bodyParser from 'body-parser';
 import { BlobServiceClient } from '@azure/storage-blob';
 import { SearchClient, AzureKeyCredential } from '@azure/search-documents';
-import { OpenAI } from 'openai';
+import { AzureOpenAI } from 'openai';
 import decodeUriComponent from 'decode-uri-component';
 import dotenv from 'dotenv';
 
@@ -29,10 +29,11 @@ const searchClient = new SearchClient(
 );
 
 // Azure OpenAI 설정
-const openai = new OpenAI({
-  apiKey: process.env.AZURE_OPENAI_KEY,
+const openai = new AzureOpenAI({
   endpoint: process.env.AZURE_OPENAI_ENDPOINT,
-  azure: { deploymentName: process.env.AZURE_OPENAI_DEPLOYMENT }
+  apiKey: process.env.AZURE_OPENAI_KEY,
+  deployment: process.env.AZURE_OPENAI_DEPLOYMENT,
+  apiVersion: process.env.AZURE_OPENAI_API_VERSION
 });
 
 // 1) 이미지 업로드 유틸
@@ -47,24 +48,22 @@ async function uploadToAzure(buffer, ext = 'png') {
 
 // 2) 벡터 검색 → Top 3
 async function findTop3(blobUrl) {
-  // ⚠️ searchDocuments의 첫 인자는 반드시 문자열이어야 합니다.
   const response = await searchClient.searchDocuments(
-    "*",
+    "*", // 반드시 문자열
     {
       vector: {
-        fields:     "content_embedding",
+        fields: "content_embedding",
         vectorizer: process.env.IMAGE_VECTORIZER,
-        imageUrl:   blobUrl,
-        k:          3
+        imageUrl: blobUrl,
+        k: 3
       },
-      select: ["image_document_id"],  // 실제 인덱스 필드명
-      top:    3
+      select: ["image_document_id"],
+      top: 3
     }
   );
 
-  // results는 일반 배열이므로 map/for-of 사용
   return response.results.map(r => {
-    const raw     = r.document.image_document_id || "";
+    const raw = r.document.image_document_id || "";
     const decoded = decodeUriComponent(raw);
     return { name: decoded, score: r.score };
   });
@@ -86,9 +85,10 @@ async function fetchEntityInfo(name) {
 와 같이 통일해주세요.
 `;
   const resp = await openai.chat.completions.create({
+    model: process.env.AZURE_OPENAI_MODEL,
     messages: [{ role: "user", content: prompt }],
     temperature: 0.2,
-    max_tokens: 512
+    max_completion_tokens: 100000
   });
   const text = resp.choices[0].message.content;
   const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -99,31 +99,25 @@ async function fetchEntityInfo(name) {
 // 4) 분석 API 엔드포인트
 app.post('/api/analyze', async (req, res) => {
   try {
-    // (0) base64 이미지 → Buffer, 확장자(ext) 결정
     const { imageBase64 } = req.body;
     if (!imageBase64) {
       return res.status(400).json({ error: 'imageBase64가 필요합니다.' });
     }
+
+    // base64 → Buffer, ext 결정
     const buffer = Buffer.from(imageBase64, 'base64');
-    const ext    = imageBase64.startsWith('iVBOR') ? 'png' : 'jpg';
+    const ext = imageBase64.startsWith('iVBOR') ? 'png' : 'jpg';
 
     // (1) Azure Blob에 업로드
     const blobUrl = await uploadToAzure(buffer, ext);
-
     // (2) Top-3 벡터 검색
     const top3 = await findTop3(blobUrl);
-
     // (3) o4-mini 호출 (병렬)
     const results = await Promise.all(
       top3.map(c => fetchEntityInfo(c.name))
     );
-
     // (4) 최종 응답
-    res.json({
-      imageUrl: blobUrl,
-      type:     'vector+llm',
-      results
-    });
+    res.json({ imageUrl: blobUrl, type: 'vector+llm', results });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: e.message });
