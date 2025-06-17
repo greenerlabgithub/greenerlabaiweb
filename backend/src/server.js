@@ -89,7 +89,7 @@ async function fetchEntityInfo(name) {
     model: process.env.AZURE_OPENAI_MODEL,
     messages: [{ role: "user", content: prompt }],
     temperature: 0.2,
-    max_tokens:   100000 
+    max_completion_tokens:   100000 
   });
   const text = resp.choices[0].message.content;
   const jsonMatch = text.match(/\{[\s\S]*\}/);
