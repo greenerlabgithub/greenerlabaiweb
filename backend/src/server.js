@@ -43,22 +43,30 @@ async function uploadToAzure(buffer, ext='png') {
 
 // 2) 벡터 검색 → Top 3
 async function findTop3(blobUrl) {
-  const docs = [];
-  const iterator = searchClient.search("*", {
+  // searchDocuments()는 Promise를 반환하므로 await를 붙입니다.
+  const response = await searchClient.searchDocuments({
+    searchText: "*",
     vector: {
-      fields:        'content_embedding',
-      vectorizer:    process.env.IMAGE_VECTORIZER,
-      imageUrl:      blobUrl,
-      k:             3
+      fields:     'content_embedding',
+      vectorizer: process.env.IMAGE_VECTORIZER,
+      imageUrl:   blobUrl,
+      k:          3
     },
-    select: ['folderName','@search.score']
+    select: ['image_document_id'],  // 🚩 여기를 image_document_id로 변경
+    top: 3
   });
-  for await (const r of iterator) {
-    const decoded = decodeUriComponent(r.document.folderName || '');
-    docs.push({ name: decoded, score: r.score });
-  }
-  return docs;
+
+  // .results는 배열이므로 일반 for/of 나 map 으로 순회 가능합니다.
+  return response.results.map(r => {
+    const raw = r.document.image_document_id || '';
+    const decoded = decodeUriComponent(raw);
+    return {
+      name:  decoded,
+      score: r.score
+    };
+  });
 }
+
 // 3) o4-mini에 정보 요청
 async function fetchEntityInfo(name) {
   const prompt = `
