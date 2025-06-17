@@ -43,7 +43,8 @@ async function uploadToAzure(buffer, ext='png') {
 
 // 2) 벡터 검색 → Top 3
 async function findTop3(blobUrl) {
-  const body = {
+  const docs = [];
+  const iterator = searchClient.search("*", {
     vector: {
       fields:        'content_embedding',
       vectorizer:    process.env.IMAGE_VECTORIZER,
@@ -51,17 +52,13 @@ async function findTop3(blobUrl) {
       k:             3
     },
     select: ['folderName','@search.score']
-  };
-  const docs = [];
-  for await (const r of searchClient.search(body)) {
-    // URL 퍼센트 디코딩: "극동등에잎벌 Arge similis"
-    const raw = r.document.folderName || '';
-    const decoded = decodeUriComponent(raw);
+  });
+  for await (const r of iterator) {
+    const decoded = decodeUriComponent(r.document.folderName || '');
     docs.push({ name: decoded, score: r.score });
   }
   return docs;
 }
-
 // 3) o4-mini에 정보 요청
 async function fetchEntityInfo(name) {
   const prompt = `
