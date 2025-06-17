@@ -13,6 +13,12 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
 
+const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
+const  apiKey = process.env.AZURE_OPENAI_KEY;
+const  deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
+const  apiVersion = process.env.AZURE_OPENAI_API_VERSION;
+const options = { endpoint, apiKey, deployment, apiVersion }
+
 // Azure Blob 설정
 const blobSvc = BlobServiceClient.fromConnectionString(
   process.env.AZURE_STORAGE_CONNECTION_STRING
@@ -29,14 +35,7 @@ const searchClient = new SearchClient(
 );
 
 // Azure OpenAI 설정
-const openai = new AzureOpenAI({
-  endpoint: process.env.AZURE_OPENAI_ENDPOINT,
-  apiKey: process.env.AZURE_OPENAI_KEY,
-  azure: {
-    deployment: process.env.AZURE_OPENAI_DEPLOYMENT,
-    apiVersion: process.env.AZURE_OPENAI_API_VERSION
-  }
-});
+const openai = new AzureOpenAI(options);
 
 // 1) 이미지 업로드 유틸
 async function uploadToAzure(buffer, ext = 'png') {
