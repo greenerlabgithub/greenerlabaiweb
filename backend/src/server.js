@@ -32,8 +32,10 @@ const searchClient = new SearchClient(
 const openai = new AzureOpenAI({
   endpoint: process.env.AZURE_OPENAI_ENDPOINT,
   apiKey: process.env.AZURE_OPENAI_KEY,
-  deployment: process.env.AZURE_OPENAI_DEPLOYMENT,
-  apiVersion: process.env.AZURE_OPENAI_API_VERSION
+  azure: {
+    deployment: process.env.AZURE_OPENAI_DEPLOYMENT,
+    apiVersion: process.env.AZURE_OPENAI_API_VERSION
+  }
 });
 
 // 1) 이미지 업로드 유틸
@@ -88,7 +90,7 @@ async function fetchEntityInfo(name) {
     model: process.env.AZURE_OPENAI_MODEL,
     messages: [{ role: "user", content: prompt }],
     temperature: 0.2,
-    max_completion_tokens: 100000
+    max_tokens:   100000 
   });
   const text = resp.choices[0].message.content;
   const jsonMatch = text.match(/\{[\s\S]*\}/);
