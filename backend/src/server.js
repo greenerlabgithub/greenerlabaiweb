@@ -48,7 +48,7 @@ async function uploadToAzure(buffer, ext = 'png') {
 // 2) 벡터 검색 → Top 3
 async function findTop3(blobUrl) {
   const response = await searchClient.searchDocuments({
-    searchText: "*",
+    search: "*",
     vector: {
       fields: "content_embedding",
       vectorizer: process.env.IMAGE_VECTORIZER,
