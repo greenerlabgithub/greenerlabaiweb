@@ -11,11 +11,15 @@ import dotenv from 'dotenv';
 dotenv.config();
 const app = express();
 app.use(cors());
-app.use(bodyParser.json({ limit:'50mb' }));
+app.use(bodyParser.json({ limit: '50mb' }));
 
 // Azure Blob
-const blobSvc         = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
-const containerClient = blobSvc.getContainerClient(process.env.AZURE_STORAGE_CONTAINER);
+const blobSvc = BlobServiceClient.fromConnectionString(
+  process.env.AZURE_STORAGE_CONNECTION_STRING
+);
+const containerClient = blobSvc.getContainerClient(
+  process.env.AZURE_STORAGE_CONTAINER
+);
 
 // Azure AI Search
 const searchClient = new SearchClient(
@@ -32,37 +36,35 @@ const openai = new OpenAI({
 });
 
 // 1) 이미지 업로드
-async function uploadToAzure(buffer, ext='png') {
+async function uploadToAzure(buffer, ext = 'png') {
   const blobName = `upload/${Date.now()}.${ext}`;
-  const blob     = containerClient.getBlockBlobClient(blobName);
+  const blob = containerClient.getBlockBlobClient(blobName);
   await blob.uploadData(buffer, {
     blobHTTPHeaders: { blobContentType: `image/${ext}` }
   });
   return blob.url;
 }
 
+// 2) 벡터 검색 → Top 3
 async function findTop3(blobUrl) {
-  // ① searchDocuments()는 Promise<{ results: Array<…> }> 를 반환합니다.
   const response = await searchClient.searchDocuments({
-    searchText: "*",                // 필수: 문자열
+    searchText: "*",
     vector: {
-      fields:     "content_embedding",
+      fields: "content_embedding",
       vectorizer: process.env.IMAGE_VECTORIZER,
-      imageUrl:   blobUrl,
-      k:          3
+      imageUrl: blobUrl,
+      k: 3
     },
-    select: ["image_document_id"],  // 실제 인덱스 필드명
-    top:    3
+    select: ["image_document_id"],
+    top: 3
   });
 
-  // ② response.results는 일반 배열이므로 map/for-of 로 순회합니다.
   return response.results.map(r => {
-    const raw     = r.document.image_document_id || "";
+    const raw = r.document.image_document_id || "";
     const decoded = decodeUriComponent(raw);
     return { name: decoded, score: r.score };
   });
 }
-
 
 // 3) o4-mini에 정보 요청
 async function fetchEntityInfo(name) {
@@ -79,35 +81,49 @@ async function fetchEntityInfo(name) {
 }
 `;
   const resp = await openai.chat.completions.create({
-    messages: [{ role:'user', content: prompt }],
+    messages: [{ role: "user", content: prompt }],
     temperature: 0.2,
     max_tokens: 512
   });
-  // JSON 블록만 뽑아서 파싱
   const text = resp.choices[0].message.content;
   const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('LLM이 JSON을 반환하지 않았습니다.');
+  if (!jsonMatch) throw new Error("LLM이 JSON을 반환하지 않았습니다.");
   return JSON.parse(jsonMatch[0]);
 }
 
+// 4) 분석 API
 app.post('/api/analyze', async (req, res) => {
   try {
-    // 1) 업로드
+    // (0) imageBase64 → Buffer, ext
+    const { imageBase64 } = req.body;
+    if (!imageBase64) {
+      return res.status(400).json({ error: 'imageBase64가 필요합니다.' });
+    }
+    const buffer = Buffer.from(imageBase64, 'base64');
+    const ext = imageBase64.startsWith('iVBOR') ? 'png' : 'jpg';
+
+    // (1) 이미지 업로드
     const blobUrl = await uploadToAzure(buffer, ext);
-    // 2) 벡터 검색
-    const top3    = await findTop3(blobUrl);
-    // 3) LLM 호출
+
+    // (2) Top-3 벡터 검색
+    const top3 = await findTop3(blobUrl);
+
+    // (3) o4-mini 호출 (병렬)
     const results = await Promise.all(
       top3.map(c => fetchEntityInfo(c.name))
     );
-    // 4) 응답
-    res.json({ imageUrl: blobUrl, type: 'vector+llm', results });
+
+    // (4) 응답
+    res.json({
+      imageUrl: blobUrl,
+      type: 'vector+llm',
+      results
+    });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: e.message });
   }
 });
 
-
-const PORT = process.env.PORT||4000;
-app.listen(PORT, ()=> console.log(`API listening on ${PORT}`));
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => console.log(`API listening on ${PORT}`));
