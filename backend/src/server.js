@@ -5,7 +5,7 @@ import bodyParser from 'body-parser';
 import { BlobServiceClient } from '@azure/storage-blob';
 import { SearchClient, AzureKeyCredential } from '@azure/search-documents';
 import { OpenAI } from 'openai';
-import { decodeURIComponent } from 'decode-uri-component';
+import decodeUriComponent from 'decode-uri-component';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -56,7 +56,7 @@ async function findTop3(blobUrl) {
   for await (const r of searchClient.search(body)) {
     // URL 퍼센트 디코딩: "극동등에잎벌 Arge similis"
     const raw = r.document.folderName || '';
-    const decoded = decodeURIComponent(raw);
+    const decoded = decodeUriComponent(raw);
     docs.push({ name: decoded, score: r.score });
   }
   return docs;
