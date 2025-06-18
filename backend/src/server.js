@@ -95,7 +95,7 @@ async function findTop3(blobUrl) {
         imageUrl:   blobUrl,
         k:          3
       },
-      select: ["image_document_id"],
+      select: ["image_document_id", "@search.score"],
       top:     3
     }
   );
