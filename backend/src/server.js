@@ -100,9 +100,8 @@ async function findTop3(imageBase64) {
         kind: "imageBinary",
         fields: "content_embedding",
         base64Image: imageBase64,
-        k: 3
       }],
-      select: ["image_document_id"],
+      select: ["*"],
       queryType: "semantic",
       semanticConfiguration: "multimodal-rag-imagedatavoctor-semantic-configuration",
       captions: "extractive",
