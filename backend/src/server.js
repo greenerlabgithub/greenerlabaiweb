@@ -14,28 +14,6 @@ app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
 
 // ---------------------------------------------
-// 0) Base64 ID → URL → 폴더명(한글+영문) 디코딩 + 추출 헬퍼
-function decodeAndExtractName(imageDocumentId) {
-  console.log('[decodeAndExtractName] raw Base64 ID:', imageDocumentId);
-
-  // Base64 → percent-encoded UTF-8
-  const percentEncoded = Buffer.from(imageDocumentId, 'base64').toString('utf8');
-  console.log('[decodeAndExtractName] percentEncoded:', percentEncoded);
-
-  // percent-decode → 실제 URL
-  const url = decodeUriComponent(percentEncoded);
-  console.log('[decodeAndExtractName] decoded URL:', url);
-
-  // URL 경로에서 폴더명(= 한글+영문 이름) 추출
-  const pathname = new URL(url).pathname; // ex: "/imagedata/가날…고사리 Dryopteris chinescips/obs_4.png"
-  const segments = pathname.split('/').filter(s => s);
-  const name     = segments[segments.length - 2] || '';
-  console.log('[decodeAndExtractName] extracted name:', name);
-
-  return { url, name };
-}
-
-// ---------------------------------------------
 // 1) Azure Blob 설정
 const blobSvc = BlobServiceClient.fromConnectionString(
   process.env.AZURE_STORAGE_CONNECTION_STRING
@@ -76,6 +54,30 @@ async function uploadToAzure(buffer, ext = 'png') {
   const url = blockBlob.url;
   console.log('[uploadToAzure] uploaded to URL:', url);
   return url;
+}
+
+// ---------------------------------------------
+// **) Base64 ID → URL → 폴더명(한글+영문) 디코딩 + 추출 헬퍼
+function decodeAndExtractName(imageDocumentId) {
+  console.log('[decodeAndExtractName] raw Base64 ID:', imageDocumentId)
+
+  // Base64 → percent-encoded UTF-8
+  const percentEncoded = Buffer
+    .from(imageDocumentId, 'base64')
+    .toString('utf8')
+  console.log('[decodeAndExtractName] percentEncoded:', percentEncoded)
+
+  // percent-decode → 실제 URL
+  const url = decodeUriComponent(percentEncoded)
+  console.log('[decodeAndExtractName] decoded URL:', url)
+
+  // URL 경로에서 폴더명 추출
+  const pathname = new URL(url).pathname
+  const segments = pathname.split('/').filter(Boolean)
+  const name     = segments[segments.length - 2] || ''
+  console.log('[decodeAndExtractName] extracted name:', name)
+
+  return { url, name }
 }
 
 // ---------------------------------------------
