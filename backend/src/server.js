@@ -95,7 +95,7 @@ async function findTop3(imageBase64) {
         base64Image: imageBase64,
         k:          3
       },
-      select: ["image_document_id", "@search.score"],
+      select: ["image_document_id"],
       queryType: "semantic",
       semanticConfiguration: "multimodal-rag-imagedatavoctor-semantic-configuration",
       captions: "extractive",
