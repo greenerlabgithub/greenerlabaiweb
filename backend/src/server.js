@@ -89,13 +89,18 @@ async function findTop3(blobUrl) {
   const response = await searchClient.searchDocuments(
     "*",  // 검색어(필수 문자열)
     {
-      vector: {
+      vectorQueries: {
         fields:     "content_embedding",
-        vectorizer: process.env.IMAGE_VECTORIZER,
-        imageUrl:   blobUrl,
+        kind: "imageBinary",
+        base64Image: imageBase64,
         k:          3
       },
       select: ["image_document_id", "@search.score"],
+      queryType: "semantic",
+      semanticConfiguration: "multimodal-rag-imagedatavoctor-semantic-configuration",
+      captions: "extractive",
+      answers: "extractive|count-3",
+      queryLanguage: "en-us",
       top:     3
     }
   );
