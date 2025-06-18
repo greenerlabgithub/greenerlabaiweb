@@ -85,7 +85,13 @@ function decodeAndExtractName(imageDocumentId) {
 // ---------------------------------------------
 // 5) 벡터 검색 → Top 3
 async function findTop3(imageBase64) {
-  console.log('[findTop3] searching vectors for base64:', imageBase64);
+  // 1) 미리보기용으로 30글자만 추출
+  const preview = imageBase64.length > 30
+    ? `${imageBase64.slice(0, 30)}…`
+    : imageBase64;
+
+  // 2) 로그 출력
+  console.log(`[findTop3] searching vectors for base64 (preview): ${preview}`);
   const response = await searchClient.searchDocuments(
     "*",  // 검색어(필수 문자열)
     {
@@ -94,7 +100,7 @@ async function findTop3(imageBase64) {
         kind: "imageBinary",
         fields: "content_embedding",
         base64Image: imageBase64,
-        k:          3
+        k: 3
       }],
       select: ["image_document_id"],
       queryType: "semantic",
