@@ -84,8 +84,8 @@ function decodeAndExtractName(imageDocumentId) {
 
 // ---------------------------------------------
 // 5) 벡터 검색 → Top 3
-async function findTop3(blobUrl) {
-  console.log('[findTop3] searching vectors for blobUrl:', blobUrl);
+async function findTop3(imageBase64) {
+  console.log('[findTop3] searching vectors for base64:', imageBase64);
   const response = await searchClient.searchDocuments(
     "*",  // 검색어(필수 문자열)
     {
@@ -179,7 +179,7 @@ app.post('/api/analyze', async (req, res) => {
     // A) 업로드
     const blobUrl = await uploadToAzure(buffer, ext);
     // B) 벡터 검색
-    const top3    = await findTop3(blobUrl);
+    const top3    = await findTop3(imageBase64);
     // C) LLM 호출 (병렬)
     const results = await Promise.all(
       top3.map(c => fetchEntityInfo(c.name))
