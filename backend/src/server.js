@@ -59,26 +59,28 @@ async function uploadToAzure(buffer, ext = 'png') {
 // ---------------------------------------------
 // **) Base64 ID → URL → 폴더명(한글+영문) 디코딩 + 추출 헬퍼
 function decodeAndExtractName(imageDocumentId) {
-  console.log('[decodeAndExtractName] raw Base64 ID:', imageDocumentId)
+  // 1) 원본 Base64 ID
+  console.log('[decodeAndExtractName] raw Base64 ID:', imageDocumentId);
 
-  // Base64 → percent-encoded UTF-8
+  // 2) Base64 → percent-encoded UTF-8
   const percentEncoded = Buffer
     .from(imageDocumentId, 'base64')
-    .toString('utf8')
-  console.log('[decodeAndExtractName] percentEncoded:', percentEncoded)
+    .toString('utf8');
+  console.log('[decodeAndExtractName] percentEncoded:', percentEncoded);
 
-  // percent-decode → 실제 URL
-  const url = decodeUriComponent(percentEncoded)
-  console.log('[decodeAndExtractName] decoded URL:', url)
+  // 3) 전체 URL은 한 번만 디코딩
+  const url = decodeURIComponent(percentEncoded);
+  console.log('[decodeAndExtractName] decoded URL:', url);
 
-  // URL 경로에서 폴더명 추출
-  const pathname = new URL(url).pathname
-  const segments = pathname.split('/').filter(Boolean)
-  const name     = segments[segments.length - 2] || ''
-  console.log('[decodeAndExtractName] extracted name:', name)
+  // 4) percentEncoded 기준으로 imagedata 뒤 폴더명(한글+영문)만 추출
+  const after       = percentEncoded.split('/imagedata/')[1] || '';
+  const folderSeg   = after.split('/')[0];                // "%EA%B0%80...Dryopteris%20chinensis"
+  const name        = decodeURIComponent(folderSeg);      // "가는잎족제비고사리 Dryopteris chinensis"
+  console.log('[decodeAndExtractName] extracted name:', name);
 
-  return { url, name }
+  return { url, name };
 }
+
 
 // ---------------------------------------------
 // 5) 벡터 검색 → Top 3
