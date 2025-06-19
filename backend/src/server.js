@@ -59,7 +59,7 @@ async function vectorSearchREST(rawBase64) {
       kind: "imageBinary",
       fields: "content_embedding",
       base64Image: rawBase64,
-      k: 3
+      k: 10
     }],
     select: "*",
     queryType: "semantic",
@@ -67,7 +67,7 @@ async function vectorSearchREST(rawBase64) {
     captions: "extractive",
     answers: "extractive|count-3",
     queryLanguage: "en-us",
-    top: 3
+    top: 10
   };
   try {
     const resp = await axios.post(url, body, {
@@ -103,21 +103,33 @@ function decodeAndExtractName(imageDocumentId) {
 // ---------------------------------------------
 // 6) 벡터 검색 → Top 3
 async function findTop3(imageBase64) {
+  // 1) Data URI 헤더 제거
   const rawBase64 = imageBase64.replace(/^data:\w+\/\w+;base64,/, "");
-  const preview = rawBase64.length > 30 ? `${rawBase64.slice(0, 30)}…` : rawBase64;
-  console.log(`[findTop3] REST vector search preview: ${preview}`);
 
-  const { value: rawDocs, "@odata.count": total } = await vectorSearchREST(rawBase64);
-  console.log(`[findTop3] REST returned ${total} docs, using top ${rawDocs.length}`);
+  // 2) 벡터 검색 호출 (top:10)
+  const { value: rawDocs } = await vectorSearchREST(rawBase64, 10);
 
-  const docs = rawDocs.map((doc) => {
+  // 3) 중복 제거 로직
+  const seen = new Set();
+  const candidates = [];
+
+  for (const doc of rawDocs) {
     const encodedId = doc.image_document_id || "";
     const { url, name } = decodeAndExtractName(encodedId);
-    return { imageUrl: url, name, score: doc['@search.score'] };
-  });
 
-  console.log('[findTop3] mapped docs:', docs);
-  return docs;
+    // 이미 본 이름이면 스킵
+    if (seen.has(name)) continue;
+
+    // 새로운 이름이면 후보군에 추가
+    seen.add(name);
+    candidates.push({ imageUrl: url, name, score: doc['@search.score'] });
+
+    // 후보 3개 채웠으면 중단
+    if (candidates.length >= 3) break;
+  }
+
+  console.log('[findTop3] unique candidates:', candidates);
+  return candidates;  // 중복 없이 최대 3개, 없으면 빈 배열
 }
 
 // ---------------------------------------------
