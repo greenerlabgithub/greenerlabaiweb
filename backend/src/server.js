@@ -61,7 +61,7 @@ async function vectorSearchREST(rawBase64) {
       base64Image: rawBase64,
       k: 3
     }],
-    select: ["*"],
+    select: "*",
     queryType: "semantic",
     semanticConfiguration: "multimodal-rag-imagedatavoctor-semantic-configuration",
     captions: "extractive",
