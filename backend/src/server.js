@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import { BlobServiceClient } from '@azure/storage-blob';
+import { AzureKeyCredential } from '@azure/search-documents';
 import axios from 'axios';
 import { AzureOpenAI } from 'openai';
 import dotenv from 'dotenv';
@@ -49,7 +50,8 @@ async function uploadToAzure(buffer, ext = 'png') {
 // ---------------------------------------------
 // 4) (REST) 벡터 검색 호출 헬퍼
 async function vectorSearchREST(rawBase64) {
-  const url = `${process.env.AZURE_SEARCH_ENDPOINT}/indexes('${process.env.AZURE_SEARCH_INDEX}')/docs/search?api-version=2025-05-01-preview`;
+  // 슬래시 스타일 인덱스 경로 사용
+  const url = `${process.env.AZURE_SEARCH_ENDPOINT}/indexes/${process.env.AZURE_SEARCH_INDEX}/docs/search?api-version=2025-05-01-pewview`;
   const body = {
     search: "*",
     count: true,
@@ -67,14 +69,21 @@ async function vectorSearchREST(rawBase64) {
     queryLanguage: "en-us",
     top: 3
   };
-  const resp = await axios.post(url, body, {
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": process.env.AZURE_SEARCH_KEY
-    }
-  });
-  return resp.data;
+  try {
+    const resp = await axios.post(url, body, {
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": process.env.AZURE_SEARCH_KEY
+      }
+    });
+    return resp.data;
+  } catch (err) {
+    console.error('[vectorSearchREST] status:', err.response?.status);
+    console.error('[vectorSearchREST] error body:', JSON.stringify(err.response?.data, null, 2));
+    throw new Error('벡터 검색 요청이 실패했습니다. 상세 로그를 확인하세요.');
+  }
 }
+
 
 // ---------------------------------------------
 // 5) Base64 ID → URL → 폴더명(한글+영문) 디코딩 헬퍼
