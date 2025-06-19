@@ -3,9 +3,8 @@ import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import { BlobServiceClient } from '@azure/storage-blob';
-import { SearchClient, AzureKeyCredential } from '@azure/search-documents';
+import axios from 'axios';
 import { AzureOpenAI } from 'openai';
-import decodeUriComponent from 'decode-uri-component';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -24,28 +23,19 @@ const containerClient = blobSvc.getContainerClient(
 console.log('[Init] Azure Blob container ready');
 
 // ---------------------------------------------
-// 2) Azure Cognitive Search 설정
-const searchClient = new SearchClient(
-  process.env.AZURE_SEARCH_ENDPOINT,
-  process.env.AZURE_SEARCH_INDEX,
-  new AzureKeyCredential(process.env.AZURE_SEARCH_KEY)
-);
-console.log('[Init] Azure Cognitive Search client ready');
-
-// ---------------------------------------------
-// 3) Azure OpenAI 설정
+// 2) Azure OpenAI 설정
 const openai = new AzureOpenAI({
-  endpoint:   process.env.AZURE_OPENAI_ENDPOINT,
-  apiKey:     process.env.AZURE_OPENAI_KEY,
+  endpoint: process.env.AZURE_OPENAI_ENDPOINT,
+  apiKey: process.env.AZURE_OPENAI_KEY,
   apiVersion: process.env.AZURE_OPENAI_API_VERSION,
-  azure:      { deploymentName: process.env.AZURE_OPENAI_DEPLOYMENT }
+  azure: { deploymentName: process.env.AZURE_OPENAI_DEPLOYMENT }
 });
 console.log('[Init] Azure OpenAI client ready, deployment=', process.env.AZURE_OPENAI_DEPLOYMENT);
 
 // ---------------------------------------------
-// 4) 이미지 업로드 유틸
+// 3) 이미지 업로드 유틸
 async function uploadToAzure(buffer, ext = 'png') {
-  const blobName  = `upload/${Date.now()}.${ext}`;
+  const blobName = `upload/${Date.now()}.${ext}`;
   console.log(`[uploadToAzure] uploading buffer (${buffer.length} bytes) as ${blobName}`);
   const blockBlob = containerClient.getBlockBlobClient(blobName);
   await blockBlob.uploadData(buffer, {
@@ -57,69 +47,64 @@ async function uploadToAzure(buffer, ext = 'png') {
 }
 
 // ---------------------------------------------
-// **) Base64 ID → URL → 폴더명(한글+영문) 디코딩 + 추출 헬퍼
+// 4) (REST) 벡터 검색 호출 헬퍼
+async function vectorSearchREST(rawBase64) {
+  const url = `${process.env.AZURE_SEARCH_ENDPOINT}/indexes('${process.env.AZURE_SEARCH_INDEX}')/docs/search?api-version=2024-07-01`;
+  const body = {
+    search: "*",
+    count: true,
+    vectorQueries: [{
+      kind: "imageBinary",
+      fields: "content_embedding",
+      base64Image: rawBase64,
+      k: 3
+    }],
+    select: ["*"],
+    queryType: "semantic",
+    semanticConfiguration: "multimodal-rag-imagedatavoctor-semantic-configuration",
+    captions: "extractive",
+    answers: "extractive|count-3",
+    queryLanguage: "en-us",
+    top: 3
+  };
+  const resp = await axios.post(url, body, {
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": process.env.AZURE_SEARCH_KEY
+    }
+  });
+  return resp.data;
+}
+
+// ---------------------------------------------
+// 5) Base64 ID → URL → 폴더명(한글+영문) 디코딩 헬퍼
 function decodeAndExtractName(imageDocumentId) {
-  // 1) 원본 Base64 ID
   console.log('[decodeAndExtractName] raw Base64 ID:', imageDocumentId);
-
-  // 2) Base64 → percent-encoded UTF-8
-  const percentEncoded = Buffer
-    .from(imageDocumentId, 'base64')
-    .toString('utf8');
+  const percentEncoded = Buffer.from(imageDocumentId, 'base64').toString('utf8');
   console.log('[decodeAndExtractName] percentEncoded:', percentEncoded);
-
-  // 3) 전체 URL은 한 번만 디코딩
   const url = decodeURIComponent(percentEncoded);
   console.log('[decodeAndExtractName] decoded URL:', url);
-
-  // 4) percentEncoded 기준으로 imagedata 뒤 폴더명(한글+영문)만 추출
-  const after       = percentEncoded.split('/imagedata/')[1] || '';
-  const folderSeg   = after.split('/')[0];                // "%EA%B0%80...Dryopteris%20chinensis"
-  const name        = decodeURIComponent(folderSeg);      // "가는잎족제비고사리 Dryopteris chinensis"
+  const after = percentEncoded.split('/imagedata/')[1] || '';
+  const folderSeg = after.split('/')[0];
+  const name = decodeURIComponent(folderSeg);
   console.log('[decodeAndExtractName] extracted name:', name);
-
   return { url, name };
 }
 
-
 // ---------------------------------------------
-// 5) 벡터 검색 → Top 3
+// 6) 벡터 검색 → Top 3
 async function findTop3(imageBase64) {
-  // 1) 미리보기용으로 30글자만 추출
-  const preview = imageBase64.length > 30
-    ? `${imageBase64.slice(0, 30)}…`
-    : imageBase64;
+  const rawBase64 = imageBase64.replace(/^data:\w+\/\w+;base64,/, "");
+  const preview = rawBase64.length > 30 ? `${rawBase64.slice(0, 30)}…` : rawBase64;
+  console.log(`[findTop3] REST vector search preview: ${preview}`);
 
-  // 2) 로그 출력
-  console.log(`[findTop3] searching vectors for base64 (preview): ${preview}`);
-  const response = await searchClient.searchDocuments(
-    "*",  // 검색어(필수 문자열)
-    {
-      vectorQueries: [
-      {
-        kind: "imageBinary",
-        fields: "content_embedding",
-        base64Image: imageBase64,
-      }],
-      select: ["*"],
-      queryType: "semantic",
-      semanticConfiguration: "multimodal-rag-imagedatavoctor-semantic-configuration",
-      captions: "extractive",
-      answers: "extractive|count-3",
-      queryLanguage: "en-us",
-      top:     3
-    }
-  );
-  console.log('[findTop3] raw search results:', response.results);
+  const { value: rawDocs, "@odata.count": total } = await vectorSearchREST(rawBase64);
+  console.log(`[findTop3] REST returned ${total} docs, using top ${rawDocs.length}`);
 
-  const docs = response.results.map((r, i) => {
-    const encodedId = r.document.image_document_id || "";
-    console.log(`[findTop3] result[${i}] encodedId:`, encodedId);
-
+  const docs = rawDocs.map((doc) => {
+    const encodedId = doc.image_document_id || "";
     const { url, name } = decodeAndExtractName(encodedId);
-    console.log(`[findTop3] result[${i}] url: ${url}, name: ${name}, score: ${r.score}`);
-
-    return { imageUrl: url, name, score: r.score };
+    return { imageUrl: url, name, score: doc['@search.score'] };
   });
 
   console.log('[findTop3] mapped docs:', docs);
@@ -127,7 +112,7 @@ async function findTop3(imageBase64) {
 }
 
 // ---------------------------------------------
-// 6) o4-mini(LLM) 호출 유틸
+// 7) o4-mini(LLM) 호출 유틸
 async function fetchEntityInfo(name) {
   console.log('[fetchEntityInfo] prompting LLM for name:', name);
   const prompt = `이름: ${name}
@@ -146,27 +131,25 @@ async function fetchEntityInfo(name) {
   console.log('[fetchEntityInfo] prompt:', prompt);
 
   const resp = await openai.chat.completions.create({
-    model:                 process.env.AZURE_OPENAI_DEPLOYMENT,
-    messages:              [{ role: "user", content: prompt }],
+    model: process.env.AZURE_OPENAI_DEPLOYMENT,
+    messages: [{ role: 'user', content: prompt }],
     max_completion_tokens: 100000
   });
-
   const content = resp.choices[0].message.content;
   console.log('[fetchEntityInfo] raw LLM response:', content);
 
   const jsonMatch = content.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     console.error('[fetchEntityInfo] JSON parse fail');
-    throw new Error("LLM이 JSON을 반환하지 않았습니다.");
+    throw new Error('LLM이 JSON을 반환하지 않았습니다.');
   }
-
   const parsed = JSON.parse(jsonMatch[0]);
   console.log('[fetchEntityInfo] parsed JSON:', parsed);
   return parsed;
 }
 
 // ---------------------------------------------
-// 7) 분석 API 엔드포인트
+// 8) 분석 API 엔드포인트
 app.post('/api/analyze', async (req, res) => {
   console.log('[API] /api/analyze called, body:', req.body);
   try {
@@ -177,22 +160,15 @@ app.post('/api/analyze', async (req, res) => {
     }
     console.log('[API] received base64 length:', imageBase64.length);
 
-    // base64 → Buffer, 확장자 결정
     const buffer = Buffer.from(imageBase64, 'base64');
-    const ext    = imageBase64.startsWith('iVBOR') ? 'png' : 'jpg';
+    const ext = imageBase64.startsWith('iVBOR') ? 'png' : 'jpg';
     console.log('[API] buffer created, ext=', ext);
 
-    // A) 업로드
     const blobUrl = await uploadToAzure(buffer, ext);
-    // B) 벡터 검색
-    const top3    = await findTop3(imageBase64);
-    // C) LLM 호출 (병렬)
-    const results = await Promise.all(
-      top3.map(c => fetchEntityInfo(c.name))
-    );
+    const top3 = await findTop3(imageBase64);
+    const results = await Promise.all(top3.map(c => fetchEntityInfo(c.name)));
     console.log('[API] final results:', results);
 
-    // D) 응답
     return res.json({ imageUrl: blobUrl, type: 'vector+llm', results });
   } catch (e) {
     console.error('[API] error:', e);
@@ -201,6 +177,6 @@ app.post('/api/analyze', async (req, res) => {
 });
 
 // ---------------------------------------------
-// 8) 서버 시작
+// 9) 서버 시작
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`[Init] API listening on ${PORT}`));
