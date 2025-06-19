@@ -51,7 +51,7 @@ async function uploadToAzure(buffer, ext = 'png') {
 // 4) (REST) 벡터 검색 호출 헬퍼
 async function vectorSearchREST(rawBase64) {
   // 슬래시 스타일 인덱스 경로 사용
-  const url = `${process.env.AZURE_SEARCH_ENDPOINT}/indexes/${process.env.AZURE_SEARCH_INDEX}/docs/search?api-version=2025-05-01-pewview`;
+  const url = `${process.env.AZURE_SEARCH_ENDPOINT}/indexes/${process.env.AZURE_SEARCH_INDEX}/docs/search?api-version=2025-05-01-preview`;
   const body = {
     search: "*",
     count: true,
