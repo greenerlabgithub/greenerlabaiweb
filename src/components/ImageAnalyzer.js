@@ -43,8 +43,11 @@ export default function ImageAnalyzer() {
     if (streaming) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      videoRef.current.srcObject = stream;
-      videoRef.current.play();
+      const video = videoRef.current;
+      video.srcObject = stream;
+      video.setAttribute('playsinline', ''); // iOS compatibility
+      video.muted = true;
+      await video.play();
       setStreaming(true);
     } catch (err) {
       console.error(err);
@@ -55,6 +58,9 @@ export default function ImageAnalyzer() {
   // 캡처 후 분석
   const captureAndAnalyze = () => {
     const video = videoRef.current;
+    if (!video || video.readyState !== 4) {
+      return alert('비디오 스트림이 준비되지 않았습니다. 잠시 후 다시 시도해주세요.');
+    }
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
@@ -66,8 +72,9 @@ export default function ImageAnalyzer() {
   // 컴포넌트 언마운트시 스트림 정리
   useEffect(() => {
     return () => {
-      if (videoRef.current && videoRef.current.srcObject) {
-        videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+      const video = videoRef.current;
+      if (video && video.srcObject) {
+        video.srcObject.getTracks().forEach(track => track.stop());
       }
     };
   }, []);
@@ -94,7 +101,13 @@ export default function ImageAnalyzer() {
         </button>
         {streaming && (
           <>
-            <video ref={videoRef} style={{ width: '100%', marginTop: 10 }} />
+            <video
+              ref={videoRef}
+              style={{ width: '100%', marginTop: 10 }}
+              autoPlay
+              muted
+              playsInline
+            />
             <button onClick={captureAndAnalyze} disabled={loading} style={{ marginTop: 10 }}>
               {loading ? '분석 중…' : '촬영 후 분석'}
             </button>
