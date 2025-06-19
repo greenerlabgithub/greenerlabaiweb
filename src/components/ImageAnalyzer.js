@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 
 export default function ImageAnalyzer() {
   const [file, setFile] = useState(null);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const videoRef = useRef(null);
+  const [streaming, setStreaming] = useState(false);
 
+  // File to Base64
   const toBase64 = file =>
     new Promise((res, rej) => {
       const reader = new FileReader();
@@ -14,12 +17,11 @@ export default function ImageAnalyzer() {
       reader.onerror = rej;
     });
 
-  const analyze = async () => {
-    if (!file) return alert('이미지를 선택하세요');
+  // REST 분석 호출
+  const analyzeImage = async base64 => {
     setLoading(true);
     try {
-      const b64 = await toBase64(file);
-      const { data } = await axios.post('/api/analyze', { imageBase64: b64 });
+      const { data } = await axios.post('/api/analyze', { imageBase64: base64 });
       setResult(data);
     } catch (err) {
       console.error(err);
@@ -29,43 +31,93 @@ export default function ImageAnalyzer() {
     }
   };
 
+  // 파일 업로드 분석
+  const analyzeFromFile = async () => {
+    if (!file) return alert('이미지를 선택하세요');
+    const b64 = await toBase64(file);
+    await analyzeImage(b64);
+  };
+
+  // 카메라 스트림 시작
+  const startCamera = async () => {
+    if (streaming) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      videoRef.current.srcObject = stream;
+      videoRef.current.play();
+      setStreaming(true);
+    } catch (err) {
+      console.error(err);
+      alert('카메라 권한을 허용해주세요');
+    }
+  };
+
+  // 캡처 후 분석
+  const captureAndAnalyze = () => {
+    const video = videoRef.current;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const base64 = canvas.toDataURL('image/png').split(',')[1];
+    analyzeImage(base64);
+  };
+
+  // 컴포넌트 언마운트시 스트림 정리
+  useEffect(() => {
+    return () => {
+      if (videoRef.current && videoRef.current.srcObject) {
+        videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
   return (
     <div style={{ padding: 16 }}>
-      <input
-        type="file"
-        accept="image/*"
-        onChange={e => setFile(e.target.files[0])}
-      />
-      <button
-        onClick={analyze}
-        disabled={loading}
-        style={{ marginLeft: 10 }}
-      >
-        {loading ? '분석 중…' : '분석'}
-      </button>
+      {/* 파일 업로드 */}
+      <div>
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={e => setFile(e.target.files[0])}
+        />
+        <button onClick={analyzeFromFile} disabled={loading} style={{ marginLeft: 10 }}>
+          {loading ? '분석 중…' : '파일로 분석'}
+        </button>
+      </div>
 
+      {/* 카메라 촬영 */}
+      <div style={{ marginTop: 20 }}>
+        <button onClick={startCamera} disabled={streaming}>
+          카메라 촬영 시작
+        </button>
+        {streaming && (
+          <>
+            <video ref={videoRef} style={{ width: '100%', marginTop: 10 }} />
+            <button onClick={captureAndAnalyze} disabled={loading} style={{ marginTop: 10 }}>
+              {loading ? '분석 중…' : '촬영 후 분석'}
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* 결과 출력 */}
       {result && (
         <div style={{ marginTop: 20 }}>
-          {/* 백엔드가 리턴하는 results 배열을 사용 */}
           {result.results.map((item, i) => (
             <div key={i} style={{ marginBottom: 24 }}>
               <h4>후보 #{i + 1}: {item.이름}</h4>
               <p><strong>정보:</strong> {item.정보}</p>
               <p><strong>방제방법:</strong></p>
               <ul>
-                {item.방제방법.map((r, j) => (
-                  <li key={j}>{r}</li>
-                ))}
+                {item.방제방법.map((r, j) => (<li key={j}>{r}</li>))}
               </ul>
             </div>
           ))}
           <div>
             <p><strong>분석된 이미지:</strong></p>
-            <img
-              src={result.imageUrl}
-              alt="분석된 결과"
-              style={{ maxWidth: '100%', border: '1px solid #ccc' }}
-            />
+            <img src={result.imageUrl} alt="분석된 결과" style={{ maxWidth: '100%', border: '1px solid #ccc' }} />
           </div>
         </div>
       )}
