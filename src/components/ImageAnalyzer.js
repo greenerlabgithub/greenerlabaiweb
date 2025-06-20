@@ -24,7 +24,7 @@ export default function ImageAnalyzer() {
       const { data } = await axios.post('/api/analyze', { imageBase64: base64 });
       setResult(data);
     } catch (err) {
-      console.error(err);
+      console.error('analyzeImage error:', err);
       alert('분석 중 오류 발생');
     } finally {
       setLoading(false);
@@ -42,7 +42,13 @@ export default function ImageAnalyzer() {
   const startCamera = async () => {
     if (streaming) return;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      });
       const video = videoRef.current;
       video.srcObject = stream;
       video.setAttribute('playsinline', ''); // iOS compatibility
@@ -50,8 +56,20 @@ export default function ImageAnalyzer() {
       await video.play();
       setStreaming(true);
     } catch (err) {
-      console.error(err);
-      alert('카메라 권한을 허용해주세요');
+      console.error('getUserMedia error:', err.name, err.message);
+      switch (err.name) {
+        case 'NotAllowedError':
+          alert('카메라 접근이 거부되었습니다. 브라우저 설정에서 권한을 허용해주세요.');
+          break;
+        case 'NotFoundError':
+          alert('카메라 장치를 찾을 수 없습니다.');
+          break;
+        case 'NotReadableError':
+          alert('카메라 장치를 사용할 수 없습니다. 다른 앱이 사용 중인지 확인해주세요.');
+          break;
+        default:
+          alert(`카메라 시작 중 오류 발생: ${err.message}`);
+      }
     }
   };
 
@@ -69,7 +87,7 @@ export default function ImageAnalyzer() {
     analyzeImage(base64);
   };
 
-  // 컴포넌트 언마운트시 스트림 정리
+  // 컴포넌트 언마운트 시 스트림 정리
   useEffect(() => {
     return () => {
       const video = videoRef.current;
