@@ -49,10 +49,11 @@ export default function ImageAnalyzer() {
           height: { ideal: 720 }
         }
       });
+      // 비디오가 항상 렌더링되어 ref가 null이 아니도록 수정됨
       const video = videoRef.current;
-      video.srcObject = stream;
-      video.setAttribute('playsinline', ''); // iOS compatibility
+      video.setAttribute('playsinline', ''); // iOS
       video.muted = true;
+      video.srcObject = stream;
       await video.play();
       setStreaming(true);
     } catch (err) {
@@ -65,7 +66,7 @@ export default function ImageAnalyzer() {
           alert('카메라 장치를 찾을 수 없습니다.');
           break;
         case 'NotReadableError':
-          alert('카메라 장치를 사용할 수 없습니다. 다른 앱이 사용 중인지 확인해주세요.');
+          alert('카메라를 사용할 수 없습니다. 다른 앱이 사용 중인지 확인해주세요.');
           break;
         default:
           alert(`카메라 시작 중 오류 발생: ${err.message}`);
@@ -117,19 +118,22 @@ export default function ImageAnalyzer() {
         <button onClick={startCamera} disabled={streaming}>
           카메라 촬영 시작
         </button>
+        {/* 비디오 엘리먼트를 항상 렌더링하여 ref가 null이 되지 않도록 함 */}
+        <video
+          ref={videoRef}
+          style={{
+            width: '100%',
+            marginTop: 10,
+            display: streaming ? 'block' : 'none'
+          }}
+          autoPlay
+          muted
+          playsInline
+        />
         {streaming && (
-          <>
-            <video
-              ref={videoRef}
-              style={{ width: '100%', marginTop: 10 }}
-              autoPlay
-              muted
-              playsInline
-            />
-            <button onClick={captureAndAnalyze} disabled={loading} style={{ marginTop: 10 }}>
-              {loading ? '분석 중…' : '촬영 후 분석'}
-            </button>
-          </>
+          <button onClick={captureAndAnalyze} disabled={loading} style={{ marginTop: 10 }}>
+            {loading ? '분석 중…' : '촬영 후 분석'}
+          </button>
         )}
       </div>
 
