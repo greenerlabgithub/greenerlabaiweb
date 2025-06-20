@@ -4,7 +4,8 @@ import axios from 'axios';
 export default function ImageAnalyzer() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
-  const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
 
   // File to Base64
   const toBase64 = file =>
@@ -29,7 +30,7 @@ export default function ImageAnalyzer() {
     }
   };
 
-  // 파일 선택 또는 카메라 앱 호출
+  // 선택된 파일 처리 (카메라 또는 갤러리)
   const handleFileChange = async e => {
     const file = e.target.files[0];
     if (!file) return;
@@ -37,28 +38,37 @@ export default function ImageAnalyzer() {
     await analyzeImage(b64);
   };
 
-  // 모바일에서 카메라 기본 앱 열기
-  const openNativeCamera = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
-  };
+  // 카메라 앱 호출
+  const openNativeCamera = () => cameraInputRef.current && cameraInputRef.current.click();
+  // 갤러리에서 사진 선택
+  const openGallery = () => galleryInputRef.current && galleryInputRef.current.click();
 
   return (
     <div style={{ padding: 16 }}>
-      {/* 숨겨진 파일 입력: 모바일 카메라 앱 호출용 */}
+      {/* 숨겨진 파일 입력 - 카메라 */}
       <input
         type="file"
         accept="image/*"
         capture="environment"
-        ref={fileInputRef}
+        ref={cameraInputRef}
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+      />
+      {/* 숨겨진 파일 입력 - 갤러리 */}
+      <input
+        type="file"
+        accept="image/*"
+        ref={galleryInputRef}
         style={{ display: 'none' }}
         onChange={handleFileChange}
       />
 
-      {/* 네이티브 카메라 앱 호출 버튼 */}
+      {/* 버튼 */}
       <button onClick={openNativeCamera} disabled={loading}>
         {loading ? '분석 중…' : '카메라 앱으로 찍기'}
+      </button>
+      <button onClick={openGallery} disabled={loading} style={{ marginLeft: 10 }}>
+        {loading ? '분석 중…' : '사진 업로드'}
       </button>
 
       {/* 결과 출력 */}
@@ -76,7 +86,11 @@ export default function ImageAnalyzer() {
           ))}
           <div>
             <p><strong>분석된 이미지:</strong></p>
-            <img src={result.imageUrl} alt="분석된 결과" style={{ maxWidth: '100%', border: '1px solid #ccc' }} />
+            <img
+              src={result.imageUrl}
+              alt="분석된 결과"
+              style={{ maxWidth: '100%', border: '1px solid #ccc' }}
+            />
           </div>
         </div>
       )}
