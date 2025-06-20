@@ -1,12 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import axios from 'axios';
 
 export default function ImageAnalyzer() {
-  const [file, setFile] = useState(null);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
-  const videoRef = useRef(null);
-  const [streaming, setStreaming] = useState(false);
+  const fileInputRef = useRef(null);
 
   // File to Base64
   const toBase64 = file =>
@@ -31,111 +29,37 @@ export default function ImageAnalyzer() {
     }
   };
 
-  // 파일 업로드 분석
-  const analyzeFromFile = async () => {
-    if (!file) return alert('이미지를 선택하세요');
+  // 파일 선택 또는 카메라 앱 호출
+  const handleFileChange = async e => {
+    const file = e.target.files[0];
+    if (!file) return;
     const b64 = await toBase64(file);
     await analyzeImage(b64);
   };
 
-  // 카메라 스트림 시작
-  const startCamera = async () => {
-    if (streaming) return;
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }
-      });
-      // 비디오가 항상 렌더링되어 ref가 null이 아니도록 수정됨
-      const video = videoRef.current;
-      video.setAttribute('playsinline', ''); // iOS
-      video.muted = true;
-      video.srcObject = stream;
-      await video.play();
-      setStreaming(true);
-    } catch (err) {
-      console.error('getUserMedia error:', err.name, err.message);
-      switch (err.name) {
-        case 'NotAllowedError':
-          alert('카메라 접근이 거부되었습니다. 브라우저 설정에서 권한을 허용해주세요.');
-          break;
-        case 'NotFoundError':
-          alert('카메라 장치를 찾을 수 없습니다.');
-          break;
-        case 'NotReadableError':
-          alert('카메라를 사용할 수 없습니다. 다른 앱이 사용 중인지 확인해주세요.');
-          break;
-        default:
-          alert(`카메라 시작 중 오류 발생: ${err.message}`);
-      }
+  // 모바일에서 카메라 기본 앱 열기
+  const openNativeCamera = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
     }
   };
-
-  // 캡처 후 분석
-  const captureAndAnalyze = () => {
-    const video = videoRef.current;
-    if (!video || video.readyState !== 4) {
-      return alert('비디오 스트림이 준비되지 않았습니다. 잠시 후 다시 시도해주세요.');
-    }
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0);
-    const base64 = canvas.toDataURL('image/png').split(',')[1];
-    analyzeImage(base64);
-  };
-
-  // 컴포넌트 언마운트 시 스트림 정리
-  useEffect(() => {
-    return () => {
-      const video = videoRef.current;
-      if (video && video.srcObject) {
-        video.srcObject.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, []);
 
   return (
     <div style={{ padding: 16 }}>
-      {/* 파일 업로드 */}
-      <div>
-        <input
-          type="file"
-          accept="image/*"
-          capture="environment"
-          onChange={e => setFile(e.target.files[0])}
-        />
-        <button onClick={analyzeFromFile} disabled={loading} style={{ marginLeft: 10 }}>
-          {loading ? '분석 중…' : '파일로 분석'}
-        </button>
-      </div>
+      {/* 숨겨진 파일 입력: 모바일 카메라 앱 호출용 */}
+      <input
+        type="file"
+        accept="image/*"
+        capture="environment"
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+      />
 
-      {/* 카메라 촬영 */}
-      <div style={{ marginTop: 20 }}>
-        <button onClick={startCamera} disabled={streaming}>
-          카메라 촬영 시작
-        </button>
-        {/* 비디오 엘리먼트를 항상 렌더링하여 ref가 null이 되지 않도록 함 */}
-        <video
-          ref={videoRef}
-          style={{
-            width: '100%',
-            marginTop: 10,
-            display: streaming ? 'block' : 'none'
-          }}
-          autoPlay
-          muted
-          playsInline
-        />
-        {streaming && (
-          <button onClick={captureAndAnalyze} disabled={loading} style={{ marginTop: 10 }}>
-            {loading ? '분석 중…' : '촬영 후 분석'}
-          </button>
-        )}
-      </div>
+      {/* 네이티브 카메라 앱 호출 버튼 */}
+      <button onClick={openNativeCamera} disabled={loading}>
+        {loading ? '분석 중…' : '카메라 앱으로 찍기'}
+      </button>
 
       {/* 결과 출력 */}
       {result && (
