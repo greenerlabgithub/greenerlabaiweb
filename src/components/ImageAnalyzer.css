@@ -1,0 +1,106 @@
+/* ImageAnalyzer.css */
+
+.image-analyzer {
+max-width: 900px;
+margin: 0 auto;
+padding: 16px;
+font-family: "Noto Sans", sans-serif;
+}
+
+/* 기본 화면 (Idle) */
+.ia-idle .ia-buttons {
+display: flex;
+gap: 12px;
+justify-content: center;
+margin-top: 40px;
+}
+
+.ia-buttons button {
+flex: 1;
+padding: 12px 20px;
+background-color: #007acc;
+color: #ffffff;
+border: none;
+border-radius: 4px;
+font-size: 16px;
+cursor: pointer;
+transition: background-color 0.2s ease;
+}
+
+.ia-buttons button:hover:not(:disabled) {
+background-color: #005fa3;
+}
+
+.ia-buttons button:disabled {
+background-color: #cccccc;
+cursor: not-allowed;
+}
+
+/* 로딩 화면 */
+.ia-loading {
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+height: 300px;
+}
+
+.spinner {
+width: 50px;
+height: 50px;
+border: 5px solid rgba(0, 0, 0, 0.1);
+border-top-color: #007acc;
+border-radius: 50%;
+animation: spin 1s linear infinite;
+margin-bottom: 16px;
+}
+
+@keyframes spin {
+to { transform: rotate(360deg); }
+}
+
+.ia-loading p {
+font-size: 18px;
+color: #333333;
+}
+
+/* 결과 화면 */
+.ia-result {
+margin-top: 24px;
+}
+
+.ia-candidate {
+border-bottom: 1px solid #eeeeee;
+padding-bottom: 16px;
+margin-bottom: 16px;
+}
+
+.ia-candidate h4 {
+margin: 0 0 8px;
+color: #007acc;
+font-size: 20px;
+}
+
+.ia-candidate p {
+margin: 4px 0;
+font-size: 14px;
+color: #444444;
+}
+
+.ia-candidate ul {
+list-style-type: disc;
+padding-left: 20px;
+margin: 4px 0 0;
+}
+
+.ia-final-image {
+text-align: center;
+margin-top: 32px;
+}
+
+.ia-final-image img {
+max-width: 100%;
+border: 1px solid #dddddd;
+border-radius: 4px;
+}
+
