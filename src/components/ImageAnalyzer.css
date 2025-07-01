@@ -41,11 +41,11 @@
    ================================================== */
 .panels {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;        /* 항상 좌우 정렬 */
   gap: 24px;
   width: 100%;
   max-width: 1200px;
-  align-items: stretch;
+  align-items: flex-start;
 }
 
 /* 공통 패널 스타일 */
@@ -64,10 +64,6 @@
   font-size: 18px;
   font-weight: 600;
   color: #333;             /* “사용 방법” 텍스트 색상 */
-}
-
-.diagnose-page.idle .right-panel .panel-content {
-  flex: 1;
 }
 
 /* 우측 패널 내용 */
@@ -173,7 +169,7 @@
 
 /* 로딩 GIF */
 .loading-gif {
-  width: 120px;
+  width: 360px;
   height: auto;
 }
 
@@ -204,8 +200,10 @@
 .result-item p {
   margin: 4px 0;
   font-size: 14px;
+  color: #333;
 }
 .result-item ul {
   padding-left: 20px;
   margin: 4px 0 0;
+  color: #333;
 }
