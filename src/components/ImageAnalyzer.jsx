@@ -126,9 +126,9 @@ export default function DiagnosePage() {
       <div className="results-list">
         {result.results.map((item, i) => (
           <div key={i} className="result-item">
-            <h4>후보 #{i+1}: {item.이름}</h4>
-            <p><strong>정보:</strong> {item.정보}</p>
-            <p><strong>방제방법:</strong></p>
+            <h4><span className="result-labela">후보 #{i+1}:</span> {item.이름}</h4>
+            <p><span className="result-labelb">정보:</span> {item.정보}</p>
+            <p><span className="result-labelc">방제방법:</span></p>
             <ul>
               {item.방제방법.map((step,j) => <li key={j}>{step}</li>)}
             </ul>

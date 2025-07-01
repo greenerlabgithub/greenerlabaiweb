@@ -199,11 +199,47 @@
 }
 .result-item p {
   margin: 4px 0;
-  font-size: 14px;
+  font-size: 16px;
   color: #333;
 }
 .result-item ul {
   padding-left: 20px;
   margin: 4px 0 0;
   color: #333;
+  font-size: 16px;
 }
+
+.result-labela {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: #333;     /* a little breathing room */
+  font-weight: bold;
+}
+
+.result-labelb {
+  margin: 4px 0;
+  font-size: 18px;
+  color: #333;
+  font-weight: bold;
+}
+
+.result-labelc {
+  padding-left: 20px;
+  margin: 4px 0 0;
+  color: #333;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+/* when status="done", override the centering on the right panel */
+.diagnose-page.done .right-panel .panel-content {
+  display: block;          /* switch off the flex centering */
+  text-align: left;        /* left-align text */
+  padding: 0;              /* optional: remove inner padding if you like */
+}
+
+/* and make sure the results-list flows naturally */
+.diagnose-page.done .right-panel .panel-content .results-list {
+  margin-top: 0;           /* if you had extra spacing */
+}
+
