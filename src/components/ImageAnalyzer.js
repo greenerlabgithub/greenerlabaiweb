@@ -2,9 +2,9 @@
 import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import './DiagnosePage.css';
-import TreeAiDLogo from '../assets/TreeAiD.png';
-import ImageIcon from '../assets/Image.png';
-import CamIcon from '../assets/Cam.png';
+import TreeAiDLogo from './pubilc/TreeAiD.png';
+import ImageIcon from './pubilc/Image.png';
+import CamIcon from './pubilc/Cam.png';
 
 export default function DiagnosePage() {
   const [status, setStatus] = useState('idle');       // 'idle' | 'analyzing' | 'done'
