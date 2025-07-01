@@ -142,7 +142,6 @@ export default function DiagnosePage() {
     <div className={`diagnose-page ${status}`}>
       {/* 1️⃣ 헤더는 항상 보이도록 */}
       <header className="page-header">
-        <img src={TreeAiDLogo} className="logo" alt="Tree AiD" />
         <div className="page-title-area">
           <h1 className="page-title">GreenerLab AI</h1>
           <p className="page-subtitle">
