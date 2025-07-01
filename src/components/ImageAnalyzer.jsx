@@ -7,22 +7,22 @@ import ImageIcon from './public/Image.png';
 import CamIcon from './public/Cam.png';
 
 export default function DiagnosePage() {
-  const [status, setStatus] = useState('idle');       // 'idle' | 'analyzing' | 'done'
+  const [status, setStatus] = useState('idle');        // 'idle' | 'analyzing' | 'done'
   const [result, setResult] = useState(null);
-  const cameraRef = useRef(null);
+  const cameraRef  = useRef(null);
   const galleryRef = useRef(null);
 
-  // 파일을 Base64로 변환
+  // 1) 파일 → Base64
   const toBase64 = file =>
     new Promise((res, rej) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
-      reader.onload = () => res(reader.result.split(',')[1]);
+      reader.onload  = () => res(reader.result.split(',')[1]);
       reader.onerror = rej;
     });
 
-  // AI 분석 호출
-  const analyzeImage = async (base64) => {
+  // 2) AI 분석 호출
+  const analyzeImage = async base64 => {
     setStatus('analyzing');
     try {
       const { data } = await axios.post('/api/analyze', { imageBase64: base64 });
@@ -35,24 +35,37 @@ export default function DiagnosePage() {
     }
   };
 
-  // 파일 선택 처리 (카메라/갤러리 공통)
-  const handleFileChange = async (e) => {
-    const file = e.target.files[0];
+  // 3) 파일 선택 처리 (input + 드롭)
+  const handleFile = async file => {
     if (!file) return;
     const b64 = await toBase64(file);
     analyzeImage(b64);
   };
 
-  // 카메라 및 갤러리 열기
-  const openCamera = () => cameraRef.current?.click();
+  const handleFileChange = e => handleFile(e.target.files[0]);
+
+  const handleDrop = e => {
+    e.preventDefault();
+    if (e.dataTransfer.files?.length) {
+      handleFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  // 4) 카메라 / 갤러리 오픈
+  const openCamera  = () => cameraRef.current?.click();
   const openGallery = () => galleryRef.current?.click();
 
-  // 좌측 패널 콘텐츠 결정
+  // 5) 좌측 패널 JSX 결정
   let leftPanel;
   if (status === 'idle') {
     leftPanel = (
       <>
-        <div className="upload-area" onClick={openGallery}>
+        <div
+          className="upload-area"
+          onClick={openGallery}
+          onDragOver={e => e.preventDefault()}
+          onDrop={handleDrop}
+        >
           <input
             ref={galleryRef}
             type="file"
@@ -62,13 +75,12 @@ export default function DiagnosePage() {
           />
           <img src={ImageIcon} alt="Upload" />
           <p className="upload-text">
-            이곳을 클릭해 파일을 업로드하거나,<br />
+            이곳을 클릭해 파일을 업로드하거나,<br/>
             파일을 드래그로 가져와서 올려주세요.
           </p>
-          <p className="upload-note">
-            업로드 가능한 최대 파일 사이즈 : 1GB
-          </p>
+          <p className="upload-note">업로드 가능한 최대 파일 사이즈 : 1GB</p>
         </div>
+
         <button className="camera-btn" onClick={openCamera}>
           <input
             ref={cameraRef}
@@ -90,7 +102,7 @@ export default function DiagnosePage() {
         <p>GreenerLab의 AI가 올려주신 이미지를 분석중입니다.</p>
       </div>
     );
-  } else {
+  } else /* done */ {
     leftPanel = (
       <div className="preview-area">
         <img className="preview-image" src={result.imageUrl} alt="Uploaded" />
@@ -98,22 +110,22 @@ export default function DiagnosePage() {
     );
   }
 
-  // 우측 패널 콘텐츠 결정
+  // 6) 우측 패널 JSX 결정
   let rightPanel;
   if (status === 'idle') {
     rightPanel = <p>이미지를 업로드하거나 카메라로 촬영하여 분석할 수 있습니다.</p>;
   } else if (status === 'analyzing') {
-    rightPanel = <p>분석이 진행 중입니다. 잠시만 기다려주세요...</p>;
+    rightPanel = <p>분석이 진행 중입니다. 잠시만 기다려주세요…</p>;
   } else {
     rightPanel = (
       <div className="results-list">
-        {result.results.map((item, idx) => (
-          <div key={idx} className="result-item">
-            <h4>후보 #{idx + 1}: {item.이름}</h4>
+        {result.results.map((item, i) => (
+          <div key={i} className="result-item">
+            <h4>후보 #{i+1}: {item.이름}</h4>
             <p><strong>정보:</strong> {item.정보}</p>
             <p><strong>방제방법:</strong></p>
             <ul>
-              {item.방제방법.map((step, i) => <li key={i}>{step}</li>)}
+              {item.방제방법.map((step,j) => <li key={j}>{step}</li>)}
             </ul>
           </div>
         ))}
@@ -121,18 +133,20 @@ export default function DiagnosePage() {
     );
   }
 
-  // 최종 렌더
   return (
-    <div className="diagnose-page">
-      <header className="page-header">
-        <img src={TreeAiDLogo} className="logo" alt="Tree AiD" />
-        <div className="page-title-area">
-          <h1 className="page-title">수목 병해충 진단 AI</h1>
-          <p className="page-subtitle">
-            수목 관리 통합 플랫폼 <strong>GreenerLab</strong>의 수목 병해충 진단 AI를 통해 사진을 분석해보세요.
-          </p>
-        </div>
-      </header>
+    <div className={`diagnose-page ${status}`}>
+      {/* 3) 분석 중/완료 시 헤더 자동 숨김 */}
+      {status === 'idle' && (
+        <header className="page-header">
+          <img src={TreeAiDLogo} className="logo" alt="Tree AiD" />
+          <div className="page-title-area">
+            <h1 className="page-title">수목 병해충 진단 AI</h1>
+            <p className="page-subtitle">
+              수목 관리 통합 플랫폼 <strong>GreenerLab</strong>의 수목 병해충 진단 AI를 통해 사진을 분석해보세요.
+            </p>
+          </div>
+        </header>
+      )}
 
       <div className="panels">
         <div className="panel left-panel">{leftPanel}</div>
