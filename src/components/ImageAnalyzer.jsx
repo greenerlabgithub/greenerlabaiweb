@@ -145,8 +145,7 @@ export default function DiagnosePage() {
           <div className="page-title-area">
             <h1 className="page-title">GreenerLab AI</h1>
             <p className="page-subtitle">
-              수목 관리 통합 플랫폼 <strong>GreenerLab</strong>의 병해충 진단 AI로<br/>
-              촬영·업로드된 이미지를 분석해 보세요.
+              수목 관리 통합 플랫폼 <strong>GreenerLab</strong>의 병해충 진단 AI로 촬영·업로드된 이미지를 분석해 보세요.
             </p>
           </div>
         </header>

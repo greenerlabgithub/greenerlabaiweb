@@ -25,13 +25,13 @@
 }
 .page-title {
   margin: 0;
-  font-size: 2.5rem;
+  font-size: 3.0rem;
   font-weight: bold;
   color: #00A86B;             /* 로고와 동일한 초록색 */
 }
 .page-subtitle {
   margin: 8px 0 0;
-  font-size: 1rem;
+  font-size: 1.5rem;
   color: #555;
   line-height: 1.4;
 }
@@ -41,10 +41,11 @@
    ================================================== */
 .panels {
   display: flex;
+  flex-direction: column;
   gap: 24px;
   width: 100%;
   max-width: 1200px;
-  align-items: flex-start;
+  align-items: stretch;
 }
 
 /* 공통 패널 스타일 */
@@ -62,7 +63,11 @@
   margin: 0 0 16px;
   font-size: 18px;
   font-weight: 600;
-  color: #00A86B;             /* “사용 방법” 텍스트 색상 */
+  color: #333;             /* “사용 방법” 텍스트 색상 */
+}
+
+.diagnose-page.idle .right-panel .panel-content {
+  flex: 1;
 }
 
 /* 우측 패널 내용 */
@@ -115,13 +120,13 @@
 /* 주요 텍스트 */
 .upload-text {
   margin: 16px 0 8px;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.5;
 }
 
 /* 부연 설명 */
 .upload-note {
-  font-size: 12px;
+  font-size: 14px;
   color: #666;
 }
 
