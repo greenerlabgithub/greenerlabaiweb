@@ -184,11 +184,19 @@
    7) 결과 리스트 (업로드 완료 후)
    ================================================== */
 .results-list {
+  /* vertical padding so items don’t stick to the top/bottom */
+  padding: 16px 0;
+  /* horizontal margin to indent the whole block */
+  margin: 0 16px;
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 .result-item {
+  /* push each item away from its neighbors */
+  margin: 12px 0;
+  /* give each item some internal padding */
+  padding: 16px;
   border-bottom: 1px solid #eee;
   padding-bottom: 12px;
 }
