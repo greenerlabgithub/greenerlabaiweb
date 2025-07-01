@@ -1,7 +1,7 @@
-// src/components/DiagnosePage.jsx
+// src/components/ImageAnalyzer.jsx
 import React, { useState, useRef } from 'react';
 import axios from 'axios';
-import './DiagnosePage.css';
+import './ImageAnalyzer.css';
 import TreeAiDLogo from './pubilc/TreeAiD.png';
 import ImageIcon from './pubilc/Image.png';
 import CamIcon from './pubilc/Cam.png';
