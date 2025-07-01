@@ -7,12 +7,13 @@ import ImageIcon from './public/Image.png';
 import CamIcon from './public/Cam.png';
 
 export default function DiagnosePage() {
-  const [status, setStatus] = useState('idle');        // 'idle' | 'analyzing' | 'done'
-  const [result, setResult] = useState(null);
-  const cameraRef  = useRef(null);
-  const galleryRef = useRef(null);
+  const [status, setStatus]     = useState('idle');        // 'idle' | 'analyzing' | 'done'
+  const [result, setResult]     = useState(null);
+  const [dragging, setDragging] = useState(false);         // 드래그 오버 상태
+  const cameraRef               = useRef(null);
+  const galleryRef              = useRef(null);
 
-  // 1) 파일 → Base64
+  // File → Base64
   const toBase64 = file =>
     new Promise((res, rej) => {
       const reader = new FileReader();
@@ -21,7 +22,7 @@ export default function DiagnosePage() {
       reader.onerror = rej;
     });
 
-  // 2) AI 분석 호출
+  // AI 분석 호출
   const analyzeImage = async base64 => {
     setStatus('analyzing');
     try {
@@ -35,37 +36,49 @@ export default function DiagnosePage() {
     }
   };
 
-  // 3) 파일 선택 처리 (input + 드롭)
+  // 파일 처리
   const handleFile = async file => {
     if (!file) return;
     const b64 = await toBase64(file);
     analyzeImage(b64);
   };
-
   const handleFileChange = e => handleFile(e.target.files[0]);
 
-  const handleDrop = e => {
+  // 드래그 앤 드롭 핸들러
+  const onDragEnter = e => {
     e.preventDefault();
+    setDragging(true);
+  };
+  const onDragLeave = e => {
+    e.preventDefault();
+    setDragging(false);
+  };
+  const onDrop = e => {
+    e.preventDefault();
+    setDragging(false);
     if (e.dataTransfer.files?.length) {
       handleFile(e.dataTransfer.files[0]);
     }
   };
 
-  // 4) 카메라 / 갤러리 오픈
+  // 카메라 / 갤러리 열기
   const openCamera  = () => cameraRef.current?.click();
   const openGallery = () => galleryRef.current?.click();
 
-  // 5) 좌측 패널 JSX 결정
+  // 좌측 패널 JSX
   let leftPanel;
   if (status === 'idle') {
     leftPanel = (
       <>
         <div
-          className="upload-area"
+          className={`upload-area ${dragging ? 'dragging' : ''}`}
           onClick={openGallery}
+          onDragEnter={onDragEnter}
           onDragOver={e => e.preventDefault()}
-          onDrop={handleDrop}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
         >
+          {/* 숨겨진 인풋 */}
           <input
             ref={galleryRef}
             type="file"
@@ -104,13 +117,13 @@ export default function DiagnosePage() {
     );
   } else /* done */ {
     leftPanel = (
-      <div className="preview-area">
+      <div className="preview-area done">
         <img className="preview-image" src={result.imageUrl} alt="Uploaded" />
       </div>
     );
   }
 
-  // 6) 우측 패널 JSX 결정
+  // 우측 패널 JSX
   let rightPanel;
   if (status === 'idle') {
     rightPanel = <p>이미지를 업로드하거나 카메라로 촬영하여 분석할 수 있습니다.</p>;
@@ -135,7 +148,7 @@ export default function DiagnosePage() {
 
   return (
     <div className={`diagnose-page ${status}`}>
-      {/* 3) 분석 중/완료 시 헤더 자동 숨김 */}
+      {/* idle 상태에만 헤더 보이도록 */}
       {status === 'idle' && (
         <header className="page-header">
           <img src={TreeAiDLogo} className="logo" alt="Tree AiD" />
