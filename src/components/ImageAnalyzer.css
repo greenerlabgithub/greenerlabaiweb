@@ -237,6 +237,7 @@
   color: #333;
   font-size: 18px;
   font-weight: bold;
+  text-align: left;  /* 강제 왼쪽 정렬 */
 }
 
 /* when status="done", override the centering on the right panel */
