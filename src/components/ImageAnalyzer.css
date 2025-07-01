@@ -17,17 +17,11 @@
 }
 
 /* ==================================================
-   2) 헤더: 로고 + 제목 + 부제목
+   2) 헤더: 제목 + 부제목
    ================================================== */
 .page-header {
-  display: flex;
-  align-items: center;
-  justify-content: center;   /* 가로 중앙 정렬 */
-  gap: 16px;                  /* 로고 ↔ 텍스트 간격 */
+  text-align: center;
   margin-bottom: 32px;
-}
-.page-title-area {
-  text-align: center;         /* 텍스트 중앙 정렬 */
 }
 .page-title {
   margin: 0;
@@ -77,8 +71,8 @@
   border-radius: 6px;
   padding: 16px;
   display: flex;
-  justify-content: center;    /* 세로 중앙 정렬 */
-  align-items: center;        /* 가로 중앙 정렬 */
+  justify-content: center;    /* 수직 중앙 정렬 */
+  align-items: center;        /* 수평 중앙 정렬 */
   text-align: center;
   color: #00A86B;             /* 설명문구도 초록색 */
   font-size: 16px;
@@ -171,23 +165,18 @@
   gap: 16px;
   height: auto;               /* 업로드된 사진 높이에 맞춰 auto */
 }
+
+/* 로딩 GIF */
+.loading-gif {
+  width: 120px;
+  height: auto;
+}
+
+/* 업로드 완료 후 이미지 */
 .preview-area.done .preview-image {
   max-width: 100%;
   border-radius: 6px;
   border: 1px solid #ddd;
-}
-
-/* 스피너 */
-.spinner {
-  width: 48px;
-  height: 48px;
-  border: 6px solid rgba(0,0,0,0.1);
-  border-top-color: #007acc;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 
 /* ==================================================

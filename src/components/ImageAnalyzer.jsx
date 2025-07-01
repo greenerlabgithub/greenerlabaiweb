@@ -2,14 +2,14 @@
 import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import './ImageAnalyzer.css';
-import TreeAiDLogo from './public/TreeAiD.png';
-import ImageIcon  from './public/Image.png';
-import CamIcon    from './public/Cam.png';
+import loadingGif  from './public/loading.gif';
+import ImageIcon   from './public/Image.png';
+import CamIcon     from './public/Cam.png';
 
 export default function DiagnosePage() {
   const [status, setStatus]     = useState('idle');        // 'idle' | 'analyzing' | 'done'
   const [result, setResult]     = useState(null);
-  const [dragging, setDragging] = useState(false);         // 드래그 오버 상태
+  const [dragging, setDragging] = useState(false);
   const cameraRef               = useRef(null);
   const galleryRef              = useRef(null);
 
@@ -44,16 +44,10 @@ export default function DiagnosePage() {
   };
   const handleFileChange = e => handleFile(e.target.files[0]);
 
-  // 드래그 앤 드롭 핸들러
-  const onDragEnter = e => {
-    e.preventDefault();
-    setDragging(true);
-  };
-  const onDragLeave = e => {
-    e.preventDefault();
-    setDragging(false);
-  };
-  const onDrop = e => {
+  // 드래그 앤 드롭
+  const onDragEnter = e => { e.preventDefault(); setDragging(true); };
+  const onDragLeave = e => { e.preventDefault(); setDragging(false); };
+  const onDrop      = e => {
     e.preventDefault();
     setDragging(false);
     if (e.dataTransfer.files?.length) {
@@ -61,11 +55,11 @@ export default function DiagnosePage() {
     }
   };
 
-  // 카메라 / 갤러리 열기
+  // 카메라/갤러리 열기
   const openCamera  = () => cameraRef.current?.click();
   const openGallery = () => galleryRef.current?.click();
 
-  // 좌측 패널 JSX
+  // 좌측 패널
   let leftPanel;
   if (status === 'idle') {
     leftPanel = (
@@ -78,7 +72,6 @@ export default function DiagnosePage() {
           onDragLeave={onDragLeave}
           onDrop={onDrop}
         >
-          {/* 숨겨진 인풋 */}
           <input
             ref={galleryRef}
             type="file"
@@ -93,7 +86,6 @@ export default function DiagnosePage() {
           </p>
           <p className="upload-note">업로드 가능한 최대 파일 사이즈 : 1GB</p>
         </div>
-
         <button className="camera-btn" onClick={openCamera}>
           <input
             ref={cameraRef}
@@ -111,8 +103,8 @@ export default function DiagnosePage() {
   } else if (status === 'analyzing') {
     leftPanel = (
       <div className="preview-area">
-        <div className="spinner" />
-        <p>GreenerLab의 AI가 올려주신 이미지를 분석중입니다.</p>
+        {/* GIF 로딩 애니메이션만 표시 */}
+        <img src={loadingGif} alt="분석 중" className="loading-gif" />
       </div>
     );
   } else /* done */ {
@@ -123,7 +115,7 @@ export default function DiagnosePage() {
     );
   }
 
-  // 우측 패널 JSX
+  // 우측 패널
   let rightPanel;
   if (status === 'idle') {
     rightPanel = <p>이미지를 업로드하거나 카메라로 촬영하여 분석할 수 있습니다.</p>;
@@ -159,9 +151,12 @@ export default function DiagnosePage() {
           </div>
         </header>
       )}
-
       <div className="panels">
-        {/* ... leftPanel, rightPanel 렌더링 (기존과 동일) */}
+        <div className="panel left-panel">{leftPanel}</div>
+        <div className="panel right-panel">
+          <h2 className="panel-heading">사용 방법</h2>
+          <div className="panel-content">{rightPanel}</div>
+        </div>
       </div>
     </div>
   );
