@@ -1,29 +1,59 @@
-/* --- 전체 레이아웃 --- */
+/* src/components/ImageAnalyzer.css */
+
+/* ==================================================
+   1) 전체 컨테이너: 화면 가로·세로 중앙 정렬
+   ================================================== */
 .diagnose-page {
-  max-width: 1200px;
-  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;   /* 세로 중앙 정렬 */
+  align-items: center;       /* 가로 중앙 정렬 */
+  min-height: 100vh;         /* 화면 전체 높이 채우기 */
   padding: 24px;
+  box-sizing: border-box;
+  background: #fefefe;
   font-family: "Noto Sans", sans-serif;
   color: #333;
 }
+
+/* ==================================================
+   2) 헤더: 로고 + 제목 + 부제목
+   ================================================== */
 .page-header {
   display: flex;
   align-items: center;
-  gap: 16px;
+  justify-content: center;   /* 가로 중앙 정렬 */
+  gap: 16px;                  /* 로고 ↔ 텍스트 간격 */
+  margin-bottom: 32px;
 }
-.logo { width: 48px; height: 48px; }
-.page-title-area { flex: 1; }
-.page-title { margin: 0; font-size: 28px; font-weight: bold; }
-.page-subtitle { margin: 4px 0 0; font-size: 16px; color: #555; }
+.page-title-area {
+  text-align: center;         /* 텍스트 중앙 정렬 */
+}
+.page-title {
+  margin: 0;
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #00A86B;             /* 로고와 동일한 초록색 */
+}
+.page-subtitle {
+  margin: 8px 0 0;
+  font-size: 1rem;
+  color: #555;
+  line-height: 1.4;
+}
 
+/* ==================================================
+   3) 메인 패널 레이아웃
+   ================================================== */
 .panels {
   display: flex;
   gap: 24px;
-  margin-top: 32px;
-  align-items: flex-start;           /* 세로 상단 정렬 */
-  min-height: 500px;                 /* (5) 전체 세로 더 늘리기 */
+  width: 100%;
+  max-width: 1200px;
+  align-items: flex-start;
 }
 
+/* 공통 패널 스타일 */
 .panel {
   flex: 1;
   background: #fff;
@@ -33,28 +63,31 @@
   box-sizing: border-box;
 }
 
-.panel-heading { 
-  margin: 0 0 16px; 
-  font-size: 18px; 
-  font-weight: 600; 
-  /* (4) “사용 방법” 텍스트 색을 로고 초록색으로 */
-  color: #00A86B; 
+/* 우측 패널 헤딩 */
+.panel-heading {
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #00A86B;             /* “사용 방법” 텍스트 색상 */
 }
+
+/* 우측 패널 내용 */
 .panel-content {
-  flex: 1;
   background: #f9f9f9;
   border-radius: 6px;
   padding: 16px;
-  display: flex;                      /* (4) 세로 중앙 정렬 */
-  justify-content: center;
-  align-items: center;
+  display: flex;
+  justify-content: center;    /* 세로 중앙 정렬 */
+  align-items: center;        /* 가로 중앙 정렬 */
   text-align: center;
-  /* (4) 설명문구 색도 초록으로 */
-  color: #00A86B;
+  color: #00A86B;             /* 설명문구도 초록색 */
   font-size: 16px;
 }
 
-/* --- 1) 업로드 영역: 기본/드래그 오버/호버 --- */
+/* ==================================================
+   4) 업로드 영역 (왼쪽)
+   ================================================== */
+/* 기본 상태 */
 .upload-area {
   flex: 1;
   background: #f2f2f2;
@@ -72,28 +105,37 @@
 .upload-area:hover {
   background: #eaeaea;
 }
-/* (2) 드래그 오버 시 색 변경 */
+
+/* 드래그 오버 시 */
 .upload-area.dragging {
   background-color: #d0f0d0;
   border-color: #00A86B;
 }
+
+/* 아이콘 */
 .upload-area img {
-  width: 64px;    /* (3) 아이콘 크게 */
+  width: 64px;    /* 아이콘 크기 확대 */
   height: 64px;
 }
+
+/* 주요 텍스트 */
 .upload-text {
   margin: 16px 0 8px;
   font-size: 14px;
   line-height: 1.5;
 }
+
+/* 부연 설명 */
 .upload-note {
   font-size: 12px;
   color: #666;
 }
 
-/* --- 카메라 버튼: 기본 숨김, 모바일만 보임 --- */
+/* ==================================================
+   5) 카메라 버튼 (모바일 전용)
+   ================================================== */
 .camera-btn {
-  display: none;
+  display: none;              /* 기본 숨김 */
   align-items: center;
   gap: 12px;
   background: #fafafa;
@@ -103,6 +145,7 @@
   font-size: 16px;
   cursor: pointer;
   transition: background 0.2s;
+  margin-top: 16px;
 }
 .camera-btn img {
   width: 32px;
@@ -113,19 +156,20 @@
 }
 @media (max-width: 768px) {
   .camera-btn {
-    display: flex;
+    display: flex;           /* 모바일/태블릿에서만 보이게 */
   }
 }
 
-/* --- 미리보기/로딩 영역 --- */
+/* ==================================================
+   6) 미리보기·로딩 영역
+   ================================================== */
 .preview-area {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 16px;
-  /* (1) 사진 높이에 맞춰 auto */
-  height: auto;
+  height: auto;               /* 업로드된 사진 높이에 맞춰 auto */
 }
 .preview-area.done .preview-image {
   max-width: 100%;
@@ -142,9 +186,13 @@
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 
-/* --- 결과 리스트 --- */
+/* ==================================================
+   7) 결과 리스트 (업로드 완료 후)
+   ================================================== */
 .results-list {
   display: flex;
   flex-direction: column;

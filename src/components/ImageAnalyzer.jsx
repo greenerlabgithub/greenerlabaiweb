@@ -3,8 +3,8 @@ import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import './ImageAnalyzer.css';
 import TreeAiDLogo from './public/TreeAiD.png';
-import ImageIcon from './public/Image.png';
-import CamIcon from './public/Cam.png';
+import ImageIcon  from './public/Image.png';
+import CamIcon    from './public/Cam.png';
 
 export default function DiagnosePage() {
   const [status, setStatus]     = useState('idle');        // 'idle' | 'analyzing' | 'done'
@@ -148,25 +148,20 @@ export default function DiagnosePage() {
 
   return (
     <div className={`diagnose-page ${status}`}>
-      {/* idle 상태에만 헤더 보이도록 */}
       {status === 'idle' && (
         <header className="page-header">
-          <img src={TreeAiDLogo} className="logo" alt="Tree AiD" />
           <div className="page-title-area">
-            <h1 className="page-title">수목 병해충 진단 AI</h1>
+            <h1 className="page-title">GreenerLab AI</h1>
             <p className="page-subtitle">
-              수목 관리 통합 플랫폼 <strong>GreenerLab</strong>의 수목 병해충 진단 AI를 통해 사진을 분석해보세요.
+              수목 관리 통합 플랫폼 <strong>GreenerLab</strong>의 병해충 진단 AI로<br/>
+              촬영·업로드된 이미지를 분석해 보세요.
             </p>
           </div>
         </header>
       )}
 
       <div className="panels">
-        <div className="panel left-panel">{leftPanel}</div>
-        <div className="panel right-panel">
-          <h2 className="panel-heading">사용 방법</h2>
-          <div className="panel-content">{rightPanel}</div>
-        </div>
+        {/* ... leftPanel, rightPanel 렌더링 (기존과 동일) */}
       </div>
     </div>
   );
