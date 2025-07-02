@@ -25,7 +25,7 @@
 }
 
 .page-logo {
-  width: 48px;       /* 로고 너비 */
+  width: 50px;       /* 로고 너비 */
   height: auto;
 }
 
@@ -265,9 +265,6 @@
     width: 100%;
   }
 
-  .page-title {
-    font-size: 2.5rem;
-  }
 }
 
 @media (max-width: 768px) {
@@ -318,10 +315,6 @@
   }
   .camera-btn {
     display: flex;           /* 모바일/태블릿에서만 보이게 */
-  }
-
-  .page-title {
-    font-size: 2rem;
   }
 
   .page-subtitle {

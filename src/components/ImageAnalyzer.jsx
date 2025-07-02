@@ -2,6 +2,7 @@
 import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import './ImageAnalyzer.css';
+import GreenerLabLogo from './public/GreenerLabAI.png';
 import loadingGif  from './public/loading.gif';
 import ImageIcon   from './public/Image.png';
 import CamIcon     from './public/Cam.png';
@@ -143,7 +144,7 @@ export default function DiagnosePage() {
       {/* 1️⃣ 헤더는 항상 보이도록 */}
       <header className="page-header">
         <div className="page-title-area">
-          <h1 className="page-title">GreenerLab AI</h1>
+          <img src={GreenerLabLogo} alt="GreenerLab AI Logo" className="page-logo"/>
           <p className="page-subtitle">
             수목 관리 통합 플랫폼 <strong>GreenerLab</strong>의 병해충 진단 AI로<br/>
             촬영·업로드된 이미지를 분석해 보세요.
