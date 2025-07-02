@@ -6,7 +6,7 @@
 .diagnose-page {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  min-height: 90vh;
   padding: 24px;
   box-sizing: border-box;
   background: #fefefe;
