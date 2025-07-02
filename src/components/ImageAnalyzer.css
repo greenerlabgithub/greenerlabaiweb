@@ -25,7 +25,7 @@
 }
 
 .page-logo {
-  width: 50px;       /* 로고 너비 */
+  width: 300px;       /* 로고 너비 */
   height: auto;
 }
 
@@ -298,6 +298,11 @@
     margin: unset;
     padding: unset;
     gap: 0px;
+  }
+
+  .page-logo {
+    width: 200px;       /* 로고 너비 */
+    height: auto;
   }
 
   .panel-heading {

@@ -10,7 +10,7 @@ function App() {
           src={Logo}
           alt="TreeAiD Logo"
           style={{
-            width: 170,
+            width: 140,
             height: 'auto',
             marginRight: 8
           }}
