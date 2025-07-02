@@ -304,6 +304,15 @@
     gap: 0px;
   }
 
+  .panel-heading {
+    font-size: 16px;
+  }
+
+  /* 로딩 GIF */
+  .loading-gif {
+    width: 300px;
+  }
+
   .panel {
     border: unset;
     padding: 0px;
@@ -322,6 +331,14 @@
 
   .upload-text {
     font-size: 14px;
+  }
+
+  .diagnose-page.idle .right-panel .panel-content {
+    font-size: 12px;
+  }
+
+  .diagnose-page.analyzing .right-panel .panel-content {
+    font-size: 12px;
   }
 
 }
