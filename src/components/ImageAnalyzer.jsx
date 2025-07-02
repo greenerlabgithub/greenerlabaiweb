@@ -155,7 +155,7 @@ export default function DiagnosePage() {
       <div className="panels">
         <div className="panel left-panel">{leftPanel}</div>
         <div className="panel right-panel">
-          <h2 className="panel-heading">사용 방법</h2>
+          <h2 className="panel-heading">답변</h2>
           <div className="panel-content">{rightPanel}</div>
         </div>
       </div>

@@ -145,6 +145,7 @@
   cursor: pointer;
   transition: background 0.2s;
   margin-top: 16px;
+  width: 100%;
 }
 .camera-btn img {
   width: 32px;
@@ -152,11 +153,6 @@
 }
 .camera-btn:hover {
   background: #f0f0f0;
-}
-@media (max-width: 768px) {
-  .camera-btn {
-    display: flex;           /* 모바일/태블릿에서만 보이게 */
-  }
 }
 
 /* ==================================================
@@ -256,3 +252,17 @@
   margin-top: 0;           /* if you had extra spacing */
 }
 
+@media (max-width: 1024px) {
+  .camera-btn {
+    display: flex;           /* 모바일/태블릿에서만 보이게 */
+  }
+  .diagnose-page .panels {
+    display: flex !important;
+    flex-direction: column;
+    gap: 24px;
+  }
+  .diagnose-page .left-panel,
+  .diagnose-page .right-panel {
+    width: 100%;
+  }
+}
