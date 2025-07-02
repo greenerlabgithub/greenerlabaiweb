@@ -141,23 +141,25 @@ export default function DiagnosePage() {
 
   return (
     <div className={`diagnose-page ${status}`}>
-      {/* 1️⃣ 헤더는 항상 보이도록 */}
-      <header className="page-header">
-        <div className="page-title-area">
-          <img src={GreenerLabLogo} alt="GreenerLab AI Logo" className="page-logo"/>
-          <p className="page-subtitle">
-            수목 관리 통합 플랫폼 <strong>GreenerLab</strong>의 병해충 진단 AI로<br/>
-            촬영·업로드된 이미지를 분석해 보세요.
-          </p>
-        </div>
-      </header>
+      <div className="main-content">
+        {/* 1️⃣ 헤더는 항상 보이도록 */}
+        <header className="page-header">
+          <div className="page-title-area">
+            <img src={GreenerLabLogo} alt="GreenerLab AI Logo" className="page-logo"/>
+            <p className="page-subtitle">
+              수목 관리 통합 플랫폼 <strong>GreenerLab</strong>의 병해충 진단 AI로<br/>
+              촬영·업로드된 이미지를 분석해 보세요.
+            </p>
+          </div>
+        </header>
 
-      {/* 2️⃣ 패널은 언제나 가로(row) 정렬 */}
-      <div className="panels">
-        <div className="panel left-panel">{leftPanel}</div>
-        <div className="panel right-panel">
-          <h2 className="panel-heading">답변</h2>
-          <div className="panel-content">{rightPanel}</div>
+        {/* 2️⃣ 패널은 언제나 가로(row) 정렬 */}
+        <div className="panels">
+          <div className="panel left-panel">{leftPanel}</div>
+          <div className="panel right-panel">
+            <h2 className="panel-heading">답변</h2>
+            <div className="panel-content">{rightPanel}</div>
+          </div>
         </div>
       </div>
     </div>
