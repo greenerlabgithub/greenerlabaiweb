@@ -23,12 +23,12 @@
   text-align: center;
   margin-bottom: 32px;
 }
-.page-title {
-  margin: 0;
-  font-size: 3.0rem;
-  font-weight: bold;
-  color: #00A86B;             /* 로고와 동일한 초록색 */
+
+.page-logo {
+  width: 48px;       /* 로고 너비 */
+  height: auto;
 }
+
 .page-subtitle {
   margin: 8px 0 0;
   font-size: 1.5rem;
