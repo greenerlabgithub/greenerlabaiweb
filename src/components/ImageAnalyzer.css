@@ -265,4 +265,63 @@
   .diagnose-page .right-panel {
     width: 100%;
   }
+
+  .page-title {
+    font-size: 2.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .camera-btn {
+    font-size: 14px;
+  }
+  .result-labela, .result-labelb {
+    font-size: 14px;
+  }
+  .result-labelc {
+    font-size: 14px;
+  }
+  .result-item ul {
+    font-size: 14px;
+  }
+
+  .result-item h4 {
+    font-size: 14px;
+  }
+
+  .result-item p {
+    font-size: 14px;
+  }
+
+  .result-item {
+    margin: 0px 3px 0px 3px;
+    padding: 8px 8px 5px;
+  }
+
+  .results-list {
+    margin: unset;
+    padding: unset;
+    gap: 0px;
+  }
+
+  .panel {
+    border: unset;
+    padding: 0px;
+  }
+  .camera-btn {
+    display: flex;           /* 모바일/태블릿에서만 보이게 */
+  }
+
+  .page-title {
+    font-size: 2rem;
+  }
+
+  .page-subtitle {
+    font-size: 0.8rem;
+  }
+
+  .upload-text {
+    font-size: 14px;
+  }
+
 }
