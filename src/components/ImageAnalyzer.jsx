@@ -2,7 +2,7 @@
 import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import './ImageAnalyzer.css';
-import GreenerLabLogo from './public/GreenerLabAI.png';
+import GreenerLabLogo from './public/GreenerlabAI.png';
 import loadingGif  from './public/loading.gif';
 import ImageIcon   from './public/Image.png';
 import CamIcon     from './public/Cam.png';
