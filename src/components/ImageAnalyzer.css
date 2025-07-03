@@ -261,6 +261,21 @@
   margin-top: 0;           /* if you had extra spacing */
 }
 
+.retry-btn {
+  margin-top: 24px;
+  padding: 12px 24px;
+  background-color: #00A86B;    /* GreenerLab 초록색 */
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.retry-btn:hover {
+  background-color: #008f58;
+}
+
 @media (max-width: 1024px) {
   .camera-btn {
     display: flex;           /* 모바일/태블릿에서만 보이게 */
