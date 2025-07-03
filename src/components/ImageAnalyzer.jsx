@@ -160,6 +160,13 @@ export default function DiagnosePage() {
           </div>
         </header>
 
+        {/* ➊ 분석 완료 후에만 “다시 검색하기” 버튼 출력 */}
+       {status === 'done' && (
+         <button className="retry-btn" onClick={handleReset}>
+           다시 검색하기
+         </button>
+       )}
+
         {/* 2️⃣ 패널은 언제나 가로(row) 정렬 */}
         <div className="panels">
           <div className="panel left-panel">{leftPanel}</div>
@@ -168,13 +175,6 @@ export default function DiagnosePage() {
             <div className="panel-content">{rightPanel}</div>
           </div>
         </div>
-        
-       {/* ➊ 분석 완료 후에만 “다시 검색하기” 버튼 출력 */}
-       {status === 'done' && (
-         <button className="retry-btn" onClick={handleReset}>
-           다시 검색하기
-         </button>
-       )}
       </div>
     </div>
   );

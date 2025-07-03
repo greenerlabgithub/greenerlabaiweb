@@ -257,20 +257,26 @@
 }
 
 /* and make sure the results-list flows naturally */
+.diagnose-page.done .page-header {
+    margin-bottom: unset;
+}
+
 .diagnose-page.done .right-panel .panel-content .results-list {
   margin-top: 0;           /* if you had extra spacing */
 }
 
 .retry-btn {
-  margin-top: 24px;
-  padding: 12px 24px;
-  background-color: #00A86B;    /* GreenerLab 초록색 */
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background-color 0.2s;
+    background-color: #00a86b;
+    border: none;
+    border-radius: 6px;
+    color: #fff;
+    cursor: pointer;
+    font-size: 1.3rem;
+    margin-top: 20px;
+    padding: 12px 12px;
+    transition: background-color .2s;
+    margin-bottom: 20px;
+    font-weight: 600;
 }
 .retry-btn:hover {
   background-color: #008f58;
@@ -323,6 +329,11 @@
     margin: unset;
     padding: unset;
     gap: 0px;
+  }
+
+  .retry-btn {
+    font-size: 0.8rem;
+    padding: 8px 12px;
   }
 
   .page-logo {
