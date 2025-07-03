@@ -14,6 +14,13 @@ export default function DiagnosePage() {
   const cameraRef               = useRef(null);
   const galleryRef              = useRef(null);
 
+   // 상태 초기화 핸들러
+  const handleReset = () => {
+    setResult(null);
+    setStatus('idle');
+    setDragging(false);
+  };
+
   // File → Base64
   const toBase64 = file =>
     new Promise((res, rej) => {
@@ -161,6 +168,13 @@ export default function DiagnosePage() {
             <div className="panel-content">{rightPanel}</div>
           </div>
         </div>
+        
+       {/* ➊ 분석 완료 후에만 “다시 검색하기” 버튼 출력 */}
+       {status === 'done' && (
+         <button className="retry-btn" onClick={handleReset}>
+           다시 검색하기
+         </button>
+       )}
       </div>
     </div>
   );
